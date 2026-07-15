@@ -437,8 +437,15 @@ function requestedPagePattern(direction, number) {
   return new RegExp(`\\.fandom\\.com\\/wiki\\/${pageType}_${escapeRegExp(number)}(?:$|[?#])`, "i");
 }
 
+// A short snippet means the full page fetch failed (blocked/timed out) and this is only the search
+// engine's brief preview text - too thin and unreliable to trust as an unvalidated, bypass-the-LLM
+// "found" answer. Below this length, fall through to the LLM path instead, which explicitly weighs
+// source confidence and cross-checks against other sources.
+const THIN_SNIPPET_THRESHOLD = 500;
+
 function directMappingFromText(item, { direction, number }) {
   if (!requestedPagePattern(direction, number).test(item.url)) return null;
+  if (item.snippet.length < THIN_SNIPPET_THRESHOLD) return null;
 
   const window = statisticsWindow(item.snippet);
 
@@ -474,7 +481,10 @@ function compactResults(results, request) {
     const title = normalizeText(item.title);
     const url = normalizeText(item.url);
     const snippet = relevantTextWindow(item.snippet, request);
-    return `SOURCE ${index + 1}\nTitle: ${title}\nURL: ${url}\nText: ${snippet}`;
+    const confidence = item.snippet.length < THIN_SNIPPET_THRESHOLD
+      ? "LOW CONFIDENCE - short, likely-unfetched search preview, not a full page"
+      : "full page fetched";
+    return `SOURCE ${index + 1} (${confidence})\nTitle: ${title}\nURL: ${url}\nText: ${snippet}`;
   }).join("\n\n");
 }
 
@@ -503,7 +513,7 @@ function strictExtractionPrompt({ anime, number, direction, results }) {
     "- Never infer, estimate, interpolate, rely on memory, or fabricate a number.",
     '- If the exact requested item is not clearly mapped to the target range AND not explicitly confirmed as filler in the provided text, return status "not_found".',
     "- The cited source text must explicitly mention the requested item and the returned target item, each with their correct label (episode vs. chapter), either in prose or in a clearly labeled table/list row. For filler, the cited source text must explicitly mention the requested item alongside a filler/anime-original/non-canon designation.",
-    '- If multiple sources conflict or the text is ambiguous, return status "not_found".',
+    '- If multiple full-page (non-LOW-CONFIDENCE) sources conflict with each other, or the text is ambiguous, return status "not_found". But if only a LOW CONFIDENCE source conflicts with a full-page source, trust the full-page source and ignore the low-confidence one - a short, likely-unfetched search preview is far more likely to be an inaccurate or out-of-context fragment than a fully-fetched, clearly-labeled statistics section.',
     "- source must be the URL of the result that explicitly supports the answer, otherwise null.",
     "- matched_range should be concise, such as \"Chapters 45-47\" or \"Episodes 12-13\", and must use the target label, never the requested-item label. It must be null unless status is \"found\".",
     "",
