@@ -9,6 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadDotEnv(path.join(__dirname, ".env"));
 
 const app = express();
+// Render (and most PaaS hosts) put the app behind a single reverse proxy. Without this, req.ip
+// resolves to the proxy's internal address for every request, so the per-IP rate limiter below
+// would end up rate-limiting all visitors collectively instead of individually.
+app.set("trust proxy", 1);
 const port = Number(process.env.PORT || 3000);
 const cachePath = path.join(__dirname, "data", "cache.json");
 
