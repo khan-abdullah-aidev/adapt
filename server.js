@@ -322,7 +322,7 @@ function stripHtml(html) {
     .trim();
 }
 
-async function fetchPageText(url) {
+async function fetchPageTextOnce(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
@@ -332,14 +332,25 @@ async function fetchPageText(url) {
         "User-Agent": "Adapt episode chapter finder/1.0"
       }
     });
+    // 4xx (e.g. a Cloudflare bot-block 403, a genuine 404) is not going to change on retry within
+    // the same request, so treat it as a permanent miss rather than burning time retrying it. Only
+    // 5xx and network-level failures (timeout, connection reset) are worth retrying - those are the
+    // ones likely to be transient.
+    if (response.status >= 500) throw new Error(`fetch ${url} failed with ${response.status}`);
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("text/html")) return null;
     return stripHtml(await response.text());
-  } catch {
-    return null;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function fetchPageText(url) {
+  try {
+    return await withRetry(() => fetchPageTextOnce(url), { attempts: 2, baseDelayMs: 500 });
+  } catch {
+    return null;
   }
 }
 
