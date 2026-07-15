@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #0d0e11; -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgba(87,199,191,0.28); }
+  a { color: #57c7bf; text-decoration: none; }
+  a:hover { color: #7ad8d1; }
+  input { font-family: inherit; }
+  input::placeholder { color: #4b5058; }
+  input:focus { outline: none; }
+  @keyframes ad_shimmer { 0% { background-position: -220px 0; } 100% { background-position: 220px 0; } }
+  @keyframes ad_dots { 0%, 20% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+  @keyframes ad_up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes ad_spin { to { transform: rotate(180deg); } }
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;font-family:'IBM Plex Sans',sans-serif;color:#e8eaef;background:radial-gradient(1200px 600px at 50% -10%, rgba(87,199,191,0.05), transparent 70%);">
+  <div style="width:100%;max-width:600px;">
+
+    <!-- wordmark -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:36px;">
+      <div style="display:flex;align-items:baseline;gap:2px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:26px;letter-spacing:-0.5px;color:#e8eaef;">
+        <span>adapt</span><span style="color:#57c7bf;">.</span>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#6a6f7b;">
+        episode <span style="color:#57c7bf;">↔</span> chapter finder
+      </div>
+    </div>
+
+    <!-- search panel -->
+    <div style="background:#15171c;border:1px solid #272b34;border-radius:16px;padding:18px;box-shadow:0 20px 50px -30px rgba(0,0,0,0.9);">
+
+      <!-- title input -->
+      <div style="position:relative;margin-bottom:14px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#6a6f7b;margin-bottom:7px;">Series</div>
+        <input value="{{ title }}" onInput="{{ onTitle }}" onKeyDown="{{ onKey }}" placeholder="e.g. One Piece" spellcheck="false" style="width:100%;background:#0f1114;border:1px solid #272b34;border-radius:10px;padding:13px 14px;color:#e8eaef;font-size:16px;font-weight:500;" />
+      </div>
+
+      <!-- converter row -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;">
+
+        <!-- FROM card -->
+        <div style="background:#0f1114;border:1px solid #272b34;border-radius:12px;padding:13px 14px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#6a6f7b;margin-bottom:8px;">{{ fromLabel }}</div>
+          <input value="{{ number }}" onInput="{{ onNumber }}" onKeyDown="{{ onKey }}" placeholder="{{ numberPlaceholder }}" inputmode="numeric" spellcheck="false" style="width:100%;background:transparent;border:none;padding:0;color:#e8eaef;font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;" />
+        </div>
+
+        <!-- swap -->
+        <button onClick="{{ onSwap }}" title="Swap direction" style="align-self:center;width:40px;height:40px;flex:none;background:#1b1e25;border:1px solid #333844;border-radius:10px;color:#9297a3;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" style-hover="align-self:center;width:40px;height:40px;flex:none;background:#242832;border:1px solid #57c7bf;border-radius:10px;color:#57c7bf;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;">↔</button>
+
+        <!-- TO card (result) -->
+        <div onClick="{{ onReveal }}" style="{{ toCardStyle }}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#6a6f7b;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+            <span>{{ toLabel }}</span>
+            <sc-if value="{{ isFoundHidden }}" hint-placeholder-val="{{ false }}"><span style="color:#57c7bf;text-transform:none;letter-spacing:0.3px;font-size:10px;">tap to reveal</span></sc-if>
+          </div>
+
+          <sc-if value="{{ isIdle }}" hint-placeholder-val="{{ true }}">
+            <div style="color:#3c4048;font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;">—</div>
+          </sc-if>
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="height:29px;border-radius:6px;background:linear-gradient(90deg,#1b1e25 0%,#272b34 50%,#1b1e25 100%);background-size:220px 100%;animation:ad_shimmer 1.1s infinite linear;"></div>
+          </sc-if>
+          <sc-if value="{{ isFound }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ answerStyle }}"><span style="color:#57c7bf;font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;line-height:1.1;">{{ resultRange }}</span></div>
+          </sc-if>
+          <sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
+            <div style="color:#e0a955;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;line-height:1.25;">Not adapted</div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <div style="color:#c56b6b;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;">Try again</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- find button -->
+      <button onClick="{{ onSearch }}" disabled="{{ searchDisabled }}" style="{{ findBtnStyle }}">
+        <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+          <span style="display:inline-flex;gap:4px;align-items:center;">{{ loadingMsg }}<span style="display:inline-flex;gap:3px;margin-left:2px;"><span style="width:4px;height:4px;border-radius:50%;background:currentColor;animation:ad_dots 1.2s infinite;"></span><span style="width:4px;height:4px;border-radius:50%;background:currentColor;animation:ad_dots 1.2s infinite 0.2s;"></span><span style="width:4px;height:4px;border-radius:50%;background:currentColor;animation:ad_dots 1.2s infinite 0.4s;"></span></span></span>
+        </sc-if>
+        <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}"><span>Find match</span></sc-if>
+      </button>
+    </div>
+
+    <!-- result meta / detail -->
+    <sc-if value="{{ showMeta }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:14px;background:#15171c;border:1px solid #272b34;border-radius:14px;padding:16px 18px;animation:ad_up 0.35s ease;">
+        <div style="{{ metaBlurStyle }}">
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;line-height:1.5;color:#c9cdd6;margin-bottom:12px;">{{ resultSentence }}</div>
+          <sc-if value="{{ hasArc }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:#6a6f7b;">Arc</span>
+              <span style="font-size:13.5px;color:#e8eaef;">{{ resultArc }}</span>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #21242c;">
+          <span style="width:14px;height:14px;flex:none;border-radius:50%;border:1.5px solid #4a4f5a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#8b909c;">✦</span>
+          <span style="font-size:12px;color:#7b808c;line-height:1.4;">AI-matched, not hand-curated · <span style="{{ confColorStyle }}">{{ resultConfidence }} confidence</span></span>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- recents -->
+    <sc-if value="{{ hasRecents }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:22px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#565b66;margin-bottom:10px;padding-left:2px;">Recent</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <sc-for list="{{ recents }}" as="r" hint-placeholder-count="2">
+            <button onClick="{{ r.run }}" style="text-align:left;background:#131519;border:1px solid #21242c;border-radius:10px;padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s;" style-hover="text-align:left;background:#171a1f;border:1px solid #333844;border-radius:10px;padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s;">
+              <span style="font-size:13.5px;color:#c9cdd6;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.query }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6a6f7b;flex:none;">{{ r.answer }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="text-align:center;margin-top:32px;font-size:11.5px;color:#3f434c;line-height:1.5;">
+      Mappings are approximate. Chapter/episode pacing varies by adaptation.
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:680,&quot;height&quot;:760}}">
+class Component extends DCLogic {
+  state = {
+    title: '',
+    number: '',
+    fromType: 'episode',
+    status: 'idle', // idle | loading | found | notfound | error
+    result: null,
+    revealed: false,
+    loadingMsg: 'Reading the source',
+    recents: [],
+  };
+
+  componentDidMount() {
+    try {
+      const r = JSON.parse(localStorage.getItem('adapt.recents') || '[]');
+      if (Array.isArray(r)) this.setState({ recents: r });
+    } catch (e) {}
+  }
+
+  onTitle = (e) => this.setState({ title: e.target.value });
+  onNumber = (e) => this.setState({ number: e.target.value.replace(/[^0-9]/g, '') });
+  onKey = (e) => { if (e.key === 'Enter') this.doSearch(); };
+  onSwap = () => this.setState(s => ({
+    fromType: s.fromType === 'episode' ? 'chapter' : 'episode',
+    status: 'idle', result: null, revealed: false,
+  }));
+  onReveal = () => { if (this.state.status === 'found') this.setState({ revealed: true }); };
+
+  cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  startLoadingCycle() {
+    const msgs = ['Reading the source', 'Cross-referencing arcs', 'Aligning panels', 'Checking pacing'];
+    let i = 0;
+    this._msgTimer = setInterval(() => {
+      i = (i + 1) % msgs.length;
+      this.setState({ loadingMsg: msgs[i] });
+    }, 1600);
+  }
+  stopLoadingCycle() { if (this._msgTimer) { clearInterval(this._msgTimer); this._msgTimer = null; } }
+
+  async doSearch() {
+    const title = this.state.title.trim();
+    const number = this.state.number.trim();
+    if (!title || !number || this.state.status === 'loading') return;
+    const fromType = this.state.fromType;
+    const toType = fromType === 'episode' ? 'chapter' : 'episode';
+
+    this.setState({ status: 'loading', result: null, revealed: false, loadingMsg: 'Reading the source' });
+    this.startLoadingCycle();
+
+    const prompt = `You are an expert on anime-to-manga adaptation mapping. The series is "${title}".
+Task: map ${fromType} ${number} of the anime/manga to the corresponding ${toType}(s).
+Direction: anime ${fromType} ${number} -> manga/anime ${toType} range.
+Rules:
+- If mapping ${fromType} ${number} to ${toType}: give the specific ${toType} range covered.
+- If (episode -> chapter) and that episode is anime-original / filler with no manga equivalent, set adapted=false.
+- If the series or number seems invalid/unknown, set adapted=false and explain briefly in note.
+- range should be a short label like "Chapters 1130-1132" or "Episode 1090".
+- arc: the story arc name if applicable, else empty.
+- sentence: one plain-language sentence describing the match, e.g. "Episode 1090 adapts roughly chapters 1130-1132 of the Wano arc." Avoid heavy spoilers of specific plot events.
+- confidence: high | medium | low.
+Call report_mapping with your answer.`;
+
+    const tools = [{
+      name: 'report_mapping',
+      description: 'Report the episode/chapter mapping result.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          adapted: { type: 'boolean', description: 'true if a real mapping exists' },
+          range: { type: 'string' },
+          arc: { type: 'string' },
+          sentence: { type: 'string' },
+          note: { type: 'string' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+        },
+        required: ['adapted'],
+      },
+      run: async (input) => { this._pending = input; return 'ok'; },
+    }];
+
+    try {
+      this._pending = null;
+      await window.claude.complete({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+        tools,
+        tool_choice: { type: 'tool', name: 'report_mapping' },
+      });
+      this.stopLoadingCycle();
+      const r = this._pending;
+      if (!r) { this.setState({ status: 'error' }); return; }
+
+      if (r.adapted && r.range) {
+        this.setState({ status: 'found', result: r, revealed: false });
+        this.pushRecent(title, fromType, number, r.range, false);
+      } else {
+        const label = toType === 'chapter' ? 'Anime-original' : 'No episode';
+        this.setState({ status: 'notfound', result: { ...r, range: label }, revealed: true });
+        this.pushRecent(title, fromType, number, 'not adapted', true);
+      }
+    } catch (e) {
+      this.stopLoadingCycle();
+      this.setState({ status: 'error' });
+    }
+  }
+
+  onSearch = () => this.doSearch();
+
+  pushRecent(title, fromType, number, answer, notAdapted) {
+    const query = `${title} · ${this.cap(fromType)} ${number}`;
+    const entry = { title, fromType, number, query, answer, notAdapted };
+    const next = [entry, ...this.state.recents.filter(x => x.query !== query)].slice(0, 4);
+    this.setState({ recents: next });
+    try { localStorage.setItem('adapt.recents', JSON.stringify(next)); } catch (e) {}
+  }
+
+  runRecent(entry) {
+    this.setState({ title: entry.title, number: entry.number, fromType: entry.fromType },
+      () => this.doSearch());
+  }
+
+  renderVals() {
+    const s = this.state;
+    const fromType = s.fromType;
+    const toType = fromType === 'episode' ? 'chapter' : 'episode';
+    const r = s.result || {};
+    const isFound = s.status === 'found';
+    const hidden = isFound && !s.revealed;
+
+    const toCardBase = 'background:#0f1114;border-radius:12px;padding:13px 14px;transition:border-color 0.2s;';
+    const toCardStyle = hidden
+      ? toCardBase + 'border:1px solid #57c7bf;cursor:pointer;box-shadow:0 0 0 3px rgba(87,199,191,0.08);'
+      : toCardBase + 'border:1px solid #272b34;';
+
+    const searchDisabled = !s.title.trim() || !s.number.trim() || s.status === 'loading';
+    const findBase = 'width:100%;margin-top:14px;border:none;border-radius:11px;padding:14px;font-family:\'IBM Plex Sans\',sans-serif;font-size:15px;font-weight:600;letter-spacing:0.2px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;';
+    const findBtnStyle = searchDisabled
+      ? findBase + 'background:#1b1e25;color:#565b66;cursor:not-allowed;'
+      : findBase + 'background:#57c7bf;color:#08221f;cursor:pointer;';
+
+    const confColors = { high: '#57c7bf', medium: '#e0a955', low: '#c56b6b' };
+    const conf = r.confidence || 'medium';
+
+    return {
+      title: s.title,
+      number: s.number,
+      fromLabel: this.cap(fromType),
+      toLabel: this.cap(toType),
+      numberPlaceholder: fromType === 'episode' ? '1090' : '1130',
+
+      onTitle: this.onTitle,
+      onNumber: this.onNumber,
+      onKey: this.onKey,
+      onSwap: this.onSwap,
+      onSearch: this.onSearch,
+      onReveal: this.onReveal,
+
+      isIdle: s.status === 'idle',
+      isLoading: s.status === 'loading',
+      notLoading: s.status !== 'loading',
+      isFound,
+      isFoundHidden: hidden,
+      isNotFound: s.status === 'notfound',
+      isError: s.status === 'error',
+      loadingMsg: s.loadingMsg,
+
+      resultRange: r.range || '',
+      resultArc: r.arc || '',
+      hasArc: !!(r.arc && r.arc.trim()),
+      resultSentence: r.sentence || r.note || '',
+      resultConfidence: conf,
+      confColorStyle: { color: confColors[conf] || '#8b909c', fontWeight: 500 },
+
+      showMeta: (isFound || s.status === 'notfound') && !!(r.sentence || r.note),
+      answerStyle: { filter: hidden ? 'blur(9px)' : 'none', transition: 'filter 0.4s ease', userSelect: hidden ? 'none' : 'auto' },
+      metaBlurStyle: { filter: hidden ? 'blur(8px)' : 'none', transition: 'filter 0.4s ease', pointerEvents: hidden ? 'none' : 'auto' },
+
+      toCardStyle,
+      searchDisabled,
+      findBtnStyle,
+
+      hasRecents: s.recents.length > 0,
+      recents: s.recents.map(e => ({
+        query: e.query,
+        answer: e.notAdapted ? '— not adapted' : e.answer,
+        run: () => this.runRecent(e),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

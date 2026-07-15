@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Adapt - Episode Chapter Finder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="app" aria-label="Anime episode and manga chapter finder">
+        <header class="brand">
+          <div class="wordmark">adapt<span>.</span></div>
+          <div class="kicker">episode <span>↔</span> chapter finder</div>
+        </header>
+
+        <form class="panel" id="lookup-form">
+          <label class="field">
+            <span>Series</span>
+            <input id="anime" name="anime" autocomplete="off" spellcheck="false" placeholder="e.g. One Piece">
+          </label>
+
+          <div class="converter">
+            <label class="tile">
+              <span id="from-label">Episode</span>
+              <input id="number" name="number" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="1090">
+            </label>
+
+            <button class="swap" id="swap" type="button" title="Swap direction" aria-label="Swap direction">
+              ↔
+            </button>
+
+            <button class="tile result-tile" id="result-tile" type="button" aria-label="Reveal answer">
+              <span class="tile-head">
+                <span id="to-label">Chapter</span>
+                <span class="reveal-hint" id="reveal-hint">tap to reveal</span>
+              </span>
+              <span class="answer answer-idle" id="answer">—</span>
+            </button>
+          </div>
+
+          <button class="find" id="find" type="submit" disabled>
+            <span id="find-label">Find match</span>
+            <span class="dots" id="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </button>
+        </form>
+
+        <section class="meta" id="meta" hidden>
+          <div class="meta-body" id="meta-body">
+            <p id="result-sentence"></p>
+          </div>
+          <div class="source-row">
+            <span id="cache-badge" class="badge" hidden>cached</span>
+            <a id="source-link" href="#" target="_blank" rel="noreferrer" hidden>source</a>
+            <button type="button" id="recheck-btn" class="recheck" hidden>Wrong? Re-check</button>
+          </div>
+        </section>
+
+        <section class="recents" id="recents-wrap" hidden>
+          <div class="recents-title">Recent</div>
+          <div class="recents-list" id="recents"></div>
+        </section>
+
+        <p class="footnote">Only explicit source text is accepted. No clear source means no match.</p>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
