@@ -1,6 +1,8 @@
 const form = document.querySelector("#lookup-form");
 const animeInput = document.querySelector("#anime");
 const numberInput = document.querySelector("#number");
+const movieNameInput = document.querySelector("#movie-name");
+const modeButtons = document.querySelectorAll(".mode-btn");
 const fromLabel = document.querySelector("#from-label");
 const toLabel = document.querySelector("#to-label");
 const swapButton = document.querySelector("#swap");
@@ -19,6 +21,7 @@ const recentsList = document.querySelector("#recents");
 
 const loadingMessages = ["Reading the source", "Checking snippets", "Asking extractor", "Verifying source"];
 
+let mode = "episode";
 let direction = "episode-to-chapter";
 let status = "idle";
 let result = null;
@@ -32,9 +35,26 @@ function cap(value) {
 }
 
 function parts() {
+  if (mode === "movie") return { from: "movie", to: "chapter/arc" };
   const from = direction === "episode-to-chapter" ? "episode" : "chapter";
   const to = direction === "episode-to-chapter" ? "chapter" : "episode";
   return { from, to };
+}
+
+// The subject text shown in result sentences and recents - "Episode 1090" in episode mode,
+// or the movie name itself in movie mode.
+function subjectLabel() {
+  if (mode === "movie") return movieNameInput.value.trim();
+  return `${cap(parts().from)} ${numberInput.value.trim()}`;
+}
+
+function setMode(nextMode) {
+  mode = nextMode;
+  modeButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === mode));
+  swapButton.hidden = mode === "movie";
+  numberInput.hidden = mode === "movie";
+  movieNameInput.hidden = mode !== "movie";
+  resetResult();
 }
 
 function readRecents() {
@@ -75,7 +95,9 @@ function setLoading(on) {
 }
 
 function validForm() {
-  return animeInput.value.trim() && numberInput.value.trim() && status !== "loading";
+  if (status === "loading") return false;
+  if (!animeInput.value.trim()) return false;
+  return mode === "movie" ? Boolean(movieNameInput.value.trim()) : Boolean(numberInput.value.trim());
 }
 
 function resetResult() {
@@ -117,7 +139,9 @@ function renderResult() {
   if (status === "filler") {
     answer.classList.add("answer-filler");
     answer.textContent = "Anime-original (filler)";
-    sentence.textContent = `Episode ${numberInput.value.trim()} is anime-original — not adapted from the manga.`;
+    sentence.textContent = mode === "movie"
+      ? `${subjectLabel()} is an anime-original story — not adapted from the manga.`
+      : `Episode ${numberInput.value.trim()} is anime-original — not adapted from the manga.`;
     meta.hidden = false;
     if (result?.source) {
       sourceLink.href = result.source;
@@ -130,7 +154,9 @@ function renderResult() {
 
   if (status === "notfound") {
     answer.classList.add("answer-notfound");
-    answer.textContent = direction === "episode-to-chapter" ? "No chapter found" : "No episode found";
+    answer.textContent = mode === "movie"
+      ? "No match found"
+      : direction === "episode-to-chapter" ? "No chapter found" : "No episode found";
     sentence.textContent = "The search results did not explicitly contain a clear mapping, so no answer was returned.";
     meta.hidden = false;
     cacheBadge.hidden = !result?.cached;
@@ -144,8 +170,7 @@ function renderResult() {
       resultTile.classList.add("revealable");
       metaBody.classList.add("blurred");
     }
-    const { from, to } = parts();
-    sentence.textContent = `${cap(from)} ${numberInput.value.trim()} maps to ${result.matched_range}.`;
+    sentence.textContent = `${subjectLabel()} maps to ${result.matched_range}.`;
     meta.hidden = false;
     sourceLink.href = result.source;
     sourceLink.hidden = false;
@@ -167,8 +192,14 @@ function renderRecents() {
     button.append(query, range);
     button.addEventListener("click", () => {
       animeInput.value = item.anime;
-      numberInput.value = item.number;
-      direction = item.direction;
+      if (item.mode === "movie") {
+        setMode("movie");
+        movieNameInput.value = item.movieName;
+      } else {
+        setMode("episode");
+        numberInput.value = item.number;
+        direction = item.direction;
+      }
       render();
       form.requestSubmit();
     });
@@ -180,23 +211,26 @@ function render() {
   const { from, to } = parts();
   fromLabel.textContent = cap(from);
   toLabel.textContent = cap(to);
-  numberInput.placeholder = from === "episode" ? "1090" : "1130";
+  if (mode === "episode") numberInput.placeholder = from === "episode" ? "1090" : "1130";
   findButton.disabled = !validForm();
   renderResult();
   renderRecents();
 }
 
 function pushRecent(response) {
-  const { from } = parts();
-  const query = `${animeInput.value.trim()} · ${cap(from)} ${numberInput.value.trim()}`;
+  const query = mode === "movie"
+    ? `${animeInput.value.trim()} · ${movieNameInput.value.trim()} (Movie)`
+    : `${animeInput.value.trim()} · ${subjectLabel()}`;
   const answerText = response.status === "found"
     ? response.matched_range
     : response.status === "filler"
       ? "filler (anime-original)"
       : "— not found";
   const entry = {
+    mode,
     anime: animeInput.value.trim(),
-    number: numberInput.value.trim(),
+    number: mode === "movie" ? "" : numberInput.value.trim(),
+    movieName: mode === "movie" ? movieNameInput.value.trim() : "",
     direction,
     query,
     answer: answerText
@@ -214,10 +248,18 @@ numberInput.addEventListener("input", () => {
   if (status !== "loading") resetResult();
   else render();
 });
+movieNameInput.addEventListener("input", () => {
+  if (status !== "loading") resetResult();
+  else render();
+});
 
 swapButton.addEventListener("click", () => {
   direction = direction === "episode-to-chapter" ? "chapter-to-episode" : "episode-to-chapter";
   resetResult();
+});
+
+modeButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setMode(btn.dataset.mode));
 });
 
 resultTile.addEventListener("click", () => {
@@ -232,15 +274,14 @@ async function runLookup({ refresh = false } = {}) {
   setLoading(true);
 
   try {
+    const body = mode === "movie"
+      ? { anime: animeInput.value.trim(), mode: "movie", movieName: movieNameInput.value.trim(), refresh }
+      : { anime: animeInput.value.trim(), mode: "episode", number: numberInput.value.trim(), direction, refresh };
+
     const response = await fetch("/api/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        anime: animeInput.value.trim(),
-        number: numberInput.value.trim(),
-        direction,
-        refresh
-      })
+      body: JSON.stringify(body)
     });
     const data = await response.json();
     setLoading(false);

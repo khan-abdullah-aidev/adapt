@@ -23,10 +23,16 @@
             <input id="anime" name="anime" autocomplete="off" spellcheck="false" placeholder="e.g. One Piece">
           </label>
 
+          <div class="mode-toggle" id="mode-toggle" role="group" aria-label="Lookup type">
+            <button type="button" class="mode-btn active" id="mode-episode" data-mode="episode">Episode</button>
+            <button type="button" class="mode-btn" id="mode-movie" data-mode="movie">Movie</button>
+          </div>
+
           <div class="converter">
             <label class="tile">
               <span id="from-label">Episode</span>
               <input id="number" name="number" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="1090">
+              <input id="movie-name" name="movieName" autocomplete="off" spellcheck="false" placeholder="e.g. Infinity Castle" hidden>
             </label>
 
             <button class="swap" id="swap" type="button" title="Swap direction" aria-label="Swap direction">

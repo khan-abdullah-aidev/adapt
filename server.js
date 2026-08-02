@@ -87,11 +87,30 @@ function normalizeDirection(value) {
   return "episode-to-chapter";
 }
 
-function cacheKey({ anime, number, direction }) {
+// "Infinity Castle Part 1" and "Infinity Castle" (and "Demon Slayer the Movie: Mugen Train") should
+// resolve to the same movie for search/cache purposes, so strip the qualifiers that vary between
+// how people casually type a movie title without touching the meaningful part of the name.
+function normalizeMovieName(value) {
+  let name = normalizeText(value);
+  if (!name) return "";
+  name = name.replace(/[\s\-:,]*\bpart\s+([0-9]+|[ivx]+)\s*$/i, "");
+  name = name.replace(/\bthe\s+movie\b/gi, " ");
+  name = name.replace(/^[\s.,:;\-!?]+|[\s.,:;\-!?]+$/g, "");
+  return normalizeText(name);
+}
+
+function cacheKey(ctx) {
+  if (ctx.mode === "movie") {
+    return JSON.stringify({
+      mode: "movie",
+      anime: normalizeText(ctx.anime).toLowerCase(),
+      movieName: normalizeMovieName(ctx.movieName).toLowerCase()
+    });
+  }
   return JSON.stringify({
-    anime: normalizeText(anime).toLowerCase(),
-    number: String(number).trim(),
-    direction: normalizeDirection(direction)
+    anime: normalizeText(ctx.anime).toLowerCase(),
+    number: String(ctx.number).trim(),
+    direction: normalizeDirection(ctx.direction)
   });
 }
 
@@ -190,6 +209,16 @@ function buildSearchQuery(anime, number, direction) {
   ].join(" ");
 }
 
+// Movies don't have an episode number to search for - they map to a chapter range or a named arc,
+// so the query targets that phrasing directly instead of the "episode N" pattern used above.
+function buildMovieSearchQuery(anime, movieName) {
+  return [
+    `"${anime}" "${movieName}" manga chapter equivalent corresponding arc`,
+    "(site:listfist.com OR site:animefillerguide.com OR site:fandom.com)",
+    "adapted chapters arc statistics"
+  ].join(" ");
+}
+
 async function searchTavily(query) {
   const key = process.env.TAVILY_API_KEY;
   if (!key) throw new Error("TAVILY_API_KEY is not set.");
@@ -263,6 +292,20 @@ async function runSearch(anime, number, direction) {
       anime,
       number,
       direction,
+      results: results.filter((item) => item.snippet || item.title || item.url).slice(0, 8)
+    })
+  };
+}
+
+async function runMovieSearch(anime, movieName) {
+  const provider = selectedProvider();
+  const query = buildMovieSearchQuery(anime, movieName);
+  const results = provider === "tavily" ? await searchTavily(query) : await searchBrave(query);
+  return {
+    provider,
+    query,
+    results: await enrichMovieResults({
+      anime,
       results: results.filter((item) => item.snippet || item.title || item.url).slice(0, 8)
     })
   };
@@ -392,6 +435,22 @@ async function enrichResults({ anime, number, direction, results }) {
   return enriched.slice(0, 12);
 }
 
+// Movies don't have a predictable per-page wiki URL slug to guess (unlike Episode_N/Chapter_N), so
+// there's no equivalent of directSourceCandidates here - only the anime-level tracker pages, which
+// still might mention the movie's manga tie-in.
+async function enrichMovieResults({ anime, results }) {
+  const enriched = [...results];
+
+  for (const url of listFistCandidateUrls(anime)) {
+    await fetchAndUpsert(enriched, url, `${anime} Episode to Chapter Conversion List`);
+  }
+  for (const url of animeFillerGuideCandidateUrls(anime)) {
+    await fetchAndUpsert(enriched, url, `${anime} Filler List & Episode to Chapter Conversion Guide`);
+  }
+
+  return enriched.slice(0, 12);
+}
+
 function relevantTextWindow(text, { number, direction }) {
   const normalized = normalizeText(text);
   const fromLabel = direction === "episode-to-chapter" ? "episode" : "chapter";
@@ -499,6 +558,38 @@ function compactResults(results, request) {
   }).join("\n\n");
 }
 
+// Movies have no numeric row-marker to anchor on (unlike relevantTextWindow's episode/chapter
+// number matching), so anchor on literal occurrences of the movie's own name plus generic
+// chapter/arc vocabulary instead.
+function movieRelevantTextWindow(text, movieName) {
+  const normalized = normalizeText(text);
+  const needles = [movieName, "Chapters", "Story Arc", "Arc", "Manga"];
+  const windows = [];
+
+  for (const needle of needles) {
+    if (!needle) continue;
+    const index = normalized.toLowerCase().indexOf(needle.toLowerCase());
+    if (index === -1) continue;
+    const start = Math.max(0, index - 700);
+    const end = Math.min(normalized.length, index + 2000);
+    windows.push(normalized.slice(start, end));
+  }
+
+  return [...new Set(windows)].join(" ... ").slice(0, 6000) || normalized.slice(0, 2500);
+}
+
+function compactMovieResults(results, movieName) {
+  return results.map((item, index) => {
+    const title = normalizeText(item.title);
+    const url = normalizeText(item.url);
+    const snippet = movieRelevantTextWindow(item.snippet, movieName);
+    const confidence = item.snippet.length < THIN_SNIPPET_THRESHOLD
+      ? "LOW CONFIDENCE - short, likely-unfetched search preview, not a full page"
+      : "full page fetched";
+    return `SOURCE ${index + 1} (${confidence})\nTitle: ${title}\nURL: ${url}\nText: ${snippet}`;
+  }).join("\n\n");
+}
+
 function strictExtractionPrompt({ anime, number, direction, results }) {
   const fromLabel = direction === "episode-to-chapter" ? "episode" : "chapter";
   const toLabel = direction === "episode-to-chapter" ? "chapter" : "episode";
@@ -535,6 +626,34 @@ function strictExtractionPrompt({ anime, number, direction, results }) {
     "",
     "Search results:",
     compactResults(results, { number, direction })
+  ].join("\n");
+}
+
+function strictMovieExtractionPrompt({ anime, movieName, results }) {
+  return [
+    "You extract anime-movie-to-manga adaptation mappings from provided search result text only.",
+    "The user is asking about an anime MOVIE, not a numbered TV episode. Movies typically map to a manga chapter range or a named story arc rather than a single episode's worth of chapters, and some movies are entirely original (non-canon) stories with no manga source at all.",
+    "Return only valid JSON matching this exact shape, with no markdown, no code fences, and no commentary before or after it:",
+    '{"status": "found"|"filler"|"not_found", "matched_range": string|null, "source": string|null}',
+    "",
+    "There are three possible statuses:",
+    '- "found": the movie is clearly mapped to specific manga chapters or a named story arc in the provided text. matched_range and source are both required. matched_range should be concise, e.g. "Chapters 55-69" or "Mugen Train Arc".',
+    '- "filler": the source text explicitly states this movie is an original story, non-canon, or not based on any manga chapters/arc. matched_range must be null; source must be the URL that explicitly confirms this.',
+    '- "not_found": you could not clearly determine an answer from the provided text.',
+    "",
+    "Hard rules:",
+    "- Use only information explicitly present in the provided source titles, URLs, or snippets.",
+    "- Never infer, estimate, or fabricate a chapter number or arc name from general knowledge, even if you recognize the movie.",
+    `- The cited source text must explicitly mention "${movieName}" (or an unambiguous reference to this exact movie) alongside the chapters/arc it corresponds to, or alongside an explicit original-story/non-canon designation.`,
+    '- If the movie is not clearly mapped to specific chapters/arc AND not explicitly confirmed as an original story, return status "not_found".',
+    '- If multiple full-page (non-LOW-CONFIDENCE) sources conflict with each other, or the text is ambiguous, return status "not_found". But if only a LOW CONFIDENCE source conflicts with a full-page source, trust the full-page source and ignore the low-confidence one.',
+    "- source must be the URL of the result that explicitly supports the answer, otherwise null.",
+    "",
+    `Anime title: ${anime}`,
+    `Movie: ${movieName}`,
+    "",
+    "Search results:",
+    compactMovieResults(results, movieName)
   ].join("\n");
 }
 
@@ -686,6 +805,31 @@ function validateAgainstSource(response, { number, direction, results }) {
   return response;
 }
 
+// Movies have no numeric label to check (no containsLabeledNumber equivalent), so validation instead
+// requires the cited source to literally name this movie, plus - for "found" - some chapter/arc
+// vocabulary nearby so a citation that merely mentions the movie in passing isn't accepted as proof.
+function validateMovieAgainstSource(response, { movieName, results }) {
+  if (response.status === "not_found") return response;
+
+  const cited = findCitedSource(results, response.source);
+  if (!cited) return { status: "not_found", matched_range: null, source: null };
+
+  const text = sourceText(cited);
+  const mentionsMovie = movieName && text.toLowerCase().includes(movieName.toLowerCase());
+  if (!mentionsMovie) return { status: "not_found", matched_range: null, source: null };
+
+  if (response.status === "filler") {
+    if (!containsFillerKeyword(text)) return { status: "not_found", matched_range: null, source: null };
+    return response;
+  }
+
+  if (!/\bchapters?\b|\barcs?\b/i.test(text)) {
+    return { status: "not_found", matched_range: null, source: null };
+  }
+
+  return response;
+}
+
 function candidateModels() {
   const primary = normalizeText(process.env.OPENROUTER_MODEL);
   const fallbacks = normalizeText(process.env.OPENROUTER_FALLBACK_MODELS)
@@ -695,7 +839,7 @@ function candidateModels() {
   return [...new Set([primary, ...fallbacks].filter(Boolean))];
 }
 
-async function callOpenRouterModel(model, { anime, number, direction, results }) {
+async function callOpenRouterModel(model, promptText) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is not set.");
 
@@ -719,7 +863,7 @@ async function callOpenRouterModel(model, { anime, number, direction, results })
         },
         {
           role: "user",
-          content: strictExtractionPrompt({ anime, number, direction, results })
+          content: promptText
         }
       ]
     })
@@ -752,16 +896,16 @@ async function callOpenRouterModel(model, { anime, number, direction, results })
 // (OPENROUTER_MODEL first, then OPENROUTER_FALLBACK_MODELS) and use the first one that completes
 // successfully - a model saying "not found" is a valid answer and is NOT retried against the next
 // model, only actual call failures (rate limits, empty/malformed/truncated output) trigger a retry.
-async function extractWithOpenRouter({ anime, number, direction, results }) {
+async function extractWithModelFallback(promptText, validateFn) {
   const models = candidateModels();
   if (!models.length) throw new Error("OPENROUTER_MODEL is not set.");
 
   let lastError;
   for (const model of models) {
     try {
-      const extracted = await callOpenRouterModel(model, { anime, number, direction, results });
+      const extracted = await callOpenRouterModel(model, promptText);
       if (process.env.ADAPT_DEBUG) console.log(`NORMALIZED (${model})`, extracted);
-      const validated = validateAgainstSource(extracted, { number, direction, results });
+      const validated = validateFn(extracted);
       if (process.env.ADAPT_DEBUG) console.log(`VALIDATED (${model})`, validated);
       return validated;
     } catch (error) {
@@ -772,7 +916,79 @@ async function extractWithOpenRouter({ anime, number, direction, results }) {
   throw lastError;
 }
 
+async function extractWithOpenRouter({ anime, number, direction, results }) {
+  const promptText = strictExtractionPrompt({ anime, number, direction, results });
+  return extractWithModelFallback(promptText, (extracted) => validateAgainstSource(extracted, { number, direction, results }));
+}
+
+async function extractMovieWithOpenRouter({ anime, movieName, results }) {
+  const promptText = strictMovieExtractionPrompt({ anime, movieName, results });
+  return extractWithModelFallback(promptText, (extracted) => validateMovieAgainstSource(extracted, { movieName, results }));
+}
+
+async function handleMovieLookup(req, res) {
+  const anime = normalizeText(req.body?.anime);
+  const movieName = normalizeMovieName(req.body?.movieName);
+
+  if (!anime || !movieName) {
+    return res.status(400).json({ error: "Provide anime and movie name." });
+  }
+
+  const refresh = req.body?.refresh === true;
+  const key = cacheKey({ mode: "movie", anime, movieName });
+  if (!refresh) {
+    const cached = await getCached(key);
+    if (cached) return res.json({ ...cached, cached: true });
+  }
+
+  try {
+    const search = await runMovieSearch(anime, movieName);
+    if (process.env.ADAPT_DEBUG) {
+      console.log("MOVIE QUERY", search.query);
+      console.log("MOVIE RESULTS", search.results.map((r) => ({ title: r.title, url: r.url, len: r.snippet.length })));
+    }
+    // No deterministic fast path for movies (no predictable page-slug pattern to guess), so this
+    // always goes through the LLM extractor - which still applies the same found/filler/not_found
+    // classification and source validation as the episode path.
+    const response = search.results.length
+      ? await extractMovieWithOpenRouter({ anime, movieName, results: search.results })
+      : { status: "not_found", matched_range: null, source: null };
+
+    const isConfirmed = (response.status === "found" && response.matched_range && response.source)
+      || (response.status === "filler" && response.source);
+    if (isConfirmed) {
+      await setCached(key, response, {
+        anime,
+        movieName,
+        mode: "movie",
+        provider: search.provider,
+        query: search.query
+      });
+    }
+
+    res.json({ ...response, cached: false });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof SearchUnavailableError) {
+      return res.status(503).json({
+        error: error.message,
+        status: "search_unavailable",
+        matched_range: null,
+        source: null
+      });
+    }
+    res.status(502).json({
+      error: error.message || "Lookup failed.",
+      status: "not_found",
+      matched_range: null,
+      source: null
+    });
+  }
+}
+
 app.post("/api/lookup", rateLimit, async (req, res) => {
+  if (req.body?.mode === "movie") return handleMovieLookup(req, res);
+
   const anime = normalizeText(req.body?.anime);
   const number = normalizeText(req.body?.number);
   const direction = normalizeDirection(req.body?.direction);
