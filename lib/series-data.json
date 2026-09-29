@@ -1,0 +1,1397 @@
+[
+  {
+    "name": "07-Ghost",
+    "afg": "07-ghost"
+  },
+  {
+    "name": "3-gatsu no Lion",
+    "afg": "3-gatsu-no-lion",
+    "aliases": [
+      "March Comes in Like a Lion"
+    ]
+  },
+  {
+    "name": "3D Kanojo: Real Girl",
+    "afg": "3d-kanojo-real-girl"
+  },
+  {
+    "name": "5-toubun no Hanayome",
+    "afg": "5-toubun-no-hanayome",
+    "aliases": [
+      "The Quintessential Quintuplets"
+    ]
+  },
+  {
+    "name": "A Sign of Affection",
+    "afg": "a-sign-of-affection",
+    "aliases": [
+      "Yubisaki to Renren"
+    ]
+  },
+  {
+    "name": "Absolute Duo",
+    "afg": "absolute-duo"
+  },
+  {
+    "name": "Aharen-san wa Hakarenai",
+    "afg": "aharen-san-wa-hakarenai"
+  },
+  {
+    "name": "Ahiru no Sora",
+    "afg": "ahiru-no-sora"
+  },
+  {
+    "name": "Akame ga Kill!",
+    "afg": "akame-ga-kill"
+  },
+  {
+    "name": "Akatsuki no Yona",
+    "afg": "akatsuki-no-yona",
+    "aliases": [
+      "Yona of the Dawn"
+    ]
+  },
+  {
+    "name": "Akebi-chan no Sailor-fuku",
+    "afg": "akebi-chan-no-sailor-fuku",
+    "aliases": [
+      "Akebi’s Sailor Uniform"
+    ]
+  },
+  {
+    "name": "Another",
+    "afg": "another"
+  },
+  {
+    "name": "Ao Ashi",
+    "afg": "ao-ashi"
+  },
+  {
+    "name": "Ao Haru Ride",
+    "afg": "ao-haru-ride",
+    "aliases": [
+      "Blue Spring Ride"
+    ]
+  },
+  {
+    "name": "Arte",
+    "afg": "arte"
+  },
+  {
+    "name": "Attack on Titan",
+    "afg": "attack-on-titan",
+    "aliases": [
+      "Shingeki no Kyojin"
+    ]
+  },
+  {
+    "name": "Ayakashi Triangle",
+    "afg": "ayakashi-triangle"
+  },
+  {
+    "name": "Ballroom e Youkoso",
+    "afg": "ballroom-e-youkoso",
+    "aliases": [
+      "Welcome to the Ballroom"
+    ]
+  },
+  {
+    "name": "Barakamon",
+    "afg": "barakamon"
+  },
+  {
+    "name": "Bartender: Kami no Glass",
+    "afg": "bartender-kami-no-glass"
+  },
+  {
+    "name": "Beelzebub",
+    "afg": "beelzebub"
+  },
+  {
+    "name": "Benriya Saitou-san, Isekai ni Iku",
+    "afg": "benriya-saitou-san-isekai-ni-iku",
+    "aliases": [
+      "Handyman Saitou in Another World"
+    ]
+  },
+  {
+    "name": "Black Cat",
+    "afg": "black-cat"
+  },
+  {
+    "name": "Black Clover",
+    "afg": "black-clover"
+  },
+  {
+    "name": "Bleach",
+    "afg": "bleach"
+  },
+  {
+    "name": "Blood Lad",
+    "afg": "blood-lad"
+  },
+  {
+    "name": "Blue Box",
+    "afg": "blue-box",
+    "aliases": [
+      "Ao no Hako"
+    ]
+  },
+  {
+    "name": "Blue Exorcist",
+    "afg": "blue-exorcist",
+    "aliases": [
+      "Ao no Exorcist"
+    ]
+  },
+  {
+    "name": "Blue Lock",
+    "afg": "blue-lock"
+  },
+  {
+    "name": "Blue Period",
+    "afg": "blue-period"
+  },
+  {
+    "name": "Bocchi the Rock!",
+    "afg": "bocchi-the-rock"
+  },
+  {
+    "name": "Boku Dake ga Inai Machi",
+    "afg": "boku-dake-ga-inai-machi",
+    "aliases": [
+      "Erased"
+    ]
+  },
+  {
+    "name": "Boku no Kokoro no Yabai Yatsu",
+    "afg": "boku-no-kokoro-no-yabai-yatsu",
+    "aliases": [
+      "The Dangers in My Heart"
+    ]
+  },
+  {
+    "name": "Boku no Tsuma wa Kanjou ga Nai",
+    "afg": "boku-no-tsuma-wa-kanjou-ga-nai",
+    "aliases": [
+      "My Wife Has No Emotion"
+    ]
+  },
+  {
+    "name": "Bokura wa Minna Kawaisou",
+    "afg": "bokura-wa-minna-kawaisou",
+    "aliases": [
+      "The Kawai Complex Guide to Manors and Hostel Behavior"
+    ]
+  },
+  {
+    "name": "Bokutachi wa Benkyou ga Dekinai",
+    "afg": "bokutachi-wa-benkyou-ga-dekinai",
+    "aliases": [
+      "We Never Learn: BOKUBEN"
+    ]
+  },
+  {
+    "name": "Boruto",
+    "afg": "boruto"
+  },
+  {
+    "name": "BTOOOM!",
+    "afg": "btooom"
+  },
+  {
+    "name": "Bungou Stray Dogs",
+    "afg": "bungou-stray-dogs"
+  },
+  {
+    "name": "Busou Shoujo Machiavellianism",
+    "afg": "busou-shoujo-machiavellianism",
+    "aliases": [
+      "Armed Girl’s Machiavellism"
+    ]
+  },
+  {
+    "name": "Captain Tsubasa (Super Champions)",
+    "afg": "captain-tsubasa"
+  },
+  {
+    "name": "Cardcaptor Sakura",
+    "afg": "cardcaptor-sakura"
+  },
+  {
+    "name": "Chainsaw Man",
+    "afg": "chainsaw-man"
+  },
+  {
+    "name": "Claymore",
+    "afg": "claymore"
+  },
+  {
+    "name": "Cowboy Bebop",
+    "afg": "cowboy-bebop"
+  },
+  {
+    "name": "D-Frag!",
+    "afg": "d-frag"
+  },
+  {
+    "name": "D.Gray-man",
+    "afg": "d-gray-man"
+  },
+  {
+    "name": "Daiya no Ace",
+    "afg": "daiya-no-ace",
+    "aliases": [
+      "Ace of Diamond"
+    ]
+  },
+  {
+    "name": "Dance Dance Danseur",
+    "afg": "dance-dance-danseur"
+  },
+  {
+    "name": "Dandadan",
+    "afg": "dandadan"
+  },
+  {
+    "name": "Dark Gathering",
+    "afg": "dark-gathering"
+  },
+  {
+    "name": "Darling in the FranXX",
+    "afg": "darling-in-the-franxx"
+  },
+  {
+    "name": "Darwin’s Game",
+    "afg": "darwins-game"
+  },
+  {
+    "name": "Dead Mount Death Play",
+    "afg": "dead-mount-death-play"
+  },
+  {
+    "name": "Deadman Wonderland",
+    "afg": "deadman-wonderland"
+  },
+  {
+    "name": "Deaimon",
+    "afg": "deaimon",
+    "aliases": [
+      "Deaimon: Recipe for Happiness"
+    ]
+  },
+  {
+    "name": "Death Note",
+    "afg": "death-note"
+  },
+  {
+    "name": "Deatte 5-byou de Battle",
+    "afg": "deatte-5-byou-de-battle",
+    "aliases": [
+      "Battle Game in 5 Seconds"
+    ]
+  },
+  {
+    "name": "Dekiru Neko wa Kyou mo Yuuutsu",
+    "afg": "dekiru-neko-wa-kyou-mo-yuuutsu",
+    "aliases": [
+      "The Masterful Cat Is Depressed Again Today"
+    ]
+  },
+  {
+    "name": "Dekoboko Majo no Oyako Jijou",
+    "afg": "dekoboko-majo-no-oyako-jijou",
+    "aliases": [
+      "The Family Circumstances of the Irregular Witch"
+    ]
+  },
+  {
+    "name": "Delicious in Dungeon",
+    "afg": "delicious-in-dungeon",
+    "aliases": [
+      "Dungeon Meshi"
+    ]
+  },
+  {
+    "name": "Demi-chan wa Kataritai",
+    "afg": "demi-chan-wa-kataritai",
+    "aliases": [
+      "Interviews with Monster Girls"
+    ]
+  },
+  {
+    "name": "Demon Slayer",
+    "afg": "demon-slayer",
+    "aliases": [
+      "Kimetsu no Yaiba"
+    ]
+  },
+  {
+    "name": "Digimon Adventure",
+    "afg": "digimon-adventure"
+  },
+  {
+    "name": "Domestic na Kanojo",
+    "afg": "domestic-na-kanojo",
+    "aliases": [
+      "Domestic Girlfriend"
+    ]
+  },
+  {
+    "name": "Dorohedoro",
+    "afg": "dorohedoro"
+  },
+  {
+    "name": "Dororo",
+    "afg": "dororo-2019"
+  },
+  {
+    "name": "Dosanko Gal wa Namara Menkoi",
+    "afg": "dosanko-gal-wa-namara-menkoi",
+    "aliases": [
+      "Hokkaido Gals Are Super Adorable!"
+    ]
+  },
+  {
+    "name": "Dr. Stone",
+    "afg": "dr-stone"
+  },
+  {
+    "name": "Dragon Ball",
+    "afg": "dragon-ball"
+  },
+  {
+    "name": "Dragon Ball Super",
+    "afg": "dragon-ball-super"
+  },
+  {
+    "name": "Dragon Ball Z",
+    "afg": "dragon-ball-z"
+  },
+  {
+    "name": "Drifters",
+    "afg": "drifters"
+  },
+  {
+    "name": "Dumbbell Nan Kilo Moteru?",
+    "afg": "dumbbell-nan-kilo-moteru",
+    "aliases": [
+      "How Heavy Are the Dumbbells You Lift?"
+    ]
+  },
+  {
+    "name": "Edens Zero",
+    "afg": "edens-zero"
+  },
+  {
+    "name": "Elfen Lied",
+    "afg": "elfen-lied"
+  },
+  {
+    "name": "Eyeshield 21",
+    "afg": "eyeshield-21"
+  },
+  {
+    "name": "Fairy Tail",
+    "afg": "fairy-tail"
+  },
+  {
+    "name": "Fairy Tail: 100 Years Quest",
+    "afg": "fairy-tail-100-years-quest"
+  },
+  {
+    "name": "Fantasy Bishoujo Juniku Ojisan to",
+    "afg": "fantasy-bishoujo-juniku-ojisan",
+    "aliases": [
+      "Ordinary Guy who Reincarnated into a Total Fantasy Knockout"
+    ]
+  },
+  {
+    "name": "Fire Force",
+    "afg": "fire-force",
+    "aliases": [
+      "Enen no Shouboutai"
+    ]
+  },
+  {
+    "name": "Frieren: Beyond Journey’s End",
+    "afg": "frieren-beyond-journeys-end",
+    "aliases": [
+      "Sousou no Frieren"
+    ]
+  },
+  {
+    "name": "Full Metal Panic!",
+    "afg": "full-metal-panic"
+  },
+  {
+    "name": "Fullmetal Alchemist: Brotherhood",
+    "afg": "fullmetal-alchemist-brotherhood"
+  },
+  {
+    "name": "Fumetsu no Anata e",
+    "afg": "fumetsu-no-anata-e",
+    "aliases": [
+      "To Your Eternity"
+    ]
+  },
+  {
+    "name": "Futoku no Guild",
+    "afg": "futoku-no-guild",
+    "aliases": [
+      "Immoral Guild"
+    ]
+  },
+  {
+    "name": "Fuufu Ijou, Koibito Miman.",
+    "afg": "fuufu-ijou-koibito-miman",
+    "aliases": [
+      "More than a Married Couple, but Not Lovers"
+    ]
+  },
+  {
+    "name": "Fuuka",
+    "afg": "fuuka"
+  },
+  {
+    "name": "Gachiakuta",
+    "afg": "gachiakuta"
+  },
+  {
+    "name": "Gaikotsu Kishi-sama, Tadaima Isekai e Odekakechuu",
+    "afg": "gaikotsu-kishi-sama-tadaima-isekai-e-odekakechuu",
+    "aliases": [
+      "Skeleton Knight in Another World"
+    ]
+  },
+  {
+    "name": "Gangsta.",
+    "afg": "gangsta"
+  },
+  {
+    "name": "GANTZ",
+    "afg": "gantz"
+  },
+  {
+    "name": "Gintama",
+    "afg": "gintama"
+  },
+  {
+    "name": "Gurren Lagann",
+    "afg": "tengen-toppa-gurren-lagann"
+  },
+  {
+    "name": "Haikyuu!!",
+    "afg": "haikyuu"
+  },
+  {
+    "name": "Hajime no Ippo",
+    "afg": "hajime-no-ippo"
+  },
+  {
+    "name": "Hametsu no Oukoku",
+    "afg": "hametsu-no-oukoku",
+    "aliases": [
+      "The Kingdoms of Ruin"
+    ]
+  },
+  {
+    "name": "Hananoi-kun to Koi no Yamai",
+    "afg": "hananoi-kun-to-koi-no-yamai",
+    "aliases": [
+      "A Condition Called Love"
+    ]
+  },
+  {
+    "name": "Helck",
+    "afg": "helck"
+  },
+  {
+    "name": "Hellsing",
+    "afg": "hellsing"
+  },
+  {
+    "name": "Hokuto no Ken",
+    "afg": "hokuto-no-ken",
+    "aliases": [
+      "Fist of the North Star"
+    ]
+  },
+  {
+    "name": "Horimiya",
+    "afg": "horimiya",
+    "aliases": [
+      "Hori-san to Miyamura-kun"
+    ]
+  },
+  {
+    "name": "Hoshikuzu Telepath",
+    "afg": "hoshikuzu-telepath",
+    "aliases": [
+      "Stardust Telepath"
+    ]
+  },
+  {
+    "name": "Hunter x Hunter (1999)",
+    "afg": "hunter-x-hunter-1999"
+  },
+  {
+    "name": "Hunter x Hunter (2011)",
+    "afg": "hunter-x-hunter-2011"
+  },
+  {
+    "name": "I’m Standing on a Million Lives",
+    "afg": "im-standing-on-a-million-lives",
+    "aliases": [
+      "100-man no Inochi no Ue ni Ore wa Tatteiru"
+    ]
+  },
+  {
+    "name": "Ijiranaide, Nagatoro-san",
+    "afg": "ijiranaide-nagatoro-san",
+    "aliases": [
+      "Don’t Toy with Me, Miss Nagatoro"
+    ]
+  },
+  {
+    "name": "In the Clear Moonlit Dusk",
+    "afg": "in-the-clear-moonlit-dusk",
+    "aliases": [
+      "Uruwashi no Yoi no Tsuki"
+    ]
+  },
+  {
+    "name": "Inuyasha",
+    "afg": "inuyasha"
+  },
+  {
+    "name": "Inuyashiki",
+    "afg": "inuyashiki"
+  },
+  {
+    "name": "Isekai Ojisan",
+    "afg": "isekai-ojisan",
+    "aliases": [
+      "Uncle from Another World"
+    ]
+  },
+  {
+    "name": "Isekai Yakkyoku",
+    "afg": "isekai-yakkyoku",
+    "aliases": [
+      "Parallel World Pharmacy"
+    ]
+  },
+  {
+    "name": "Jahy-sama wa Kujikenai!",
+    "afg": "jahy-sama-wa-kujikenai",
+    "aliases": [
+      "The Great Jahy Will Not Be Defeated!"
+    ]
+  },
+  {
+    "name": "Jaku-Chara Tomozaki-kun",
+    "afg": "jaku-chara-tomozaki-kun",
+    "aliases": [
+      "Bottom-Tier Character Tomozaki"
+    ]
+  },
+  {
+    "name": "Jigokuraku",
+    "afg": "jigokuraku"
+  },
+  {
+    "name": "Jijou wo Shiranai Tenkousei ga Guigui Kuru.",
+    "afg": "jijou-wo-shiranai-tenkousei-ga-guigui-kuru",
+    "aliases": [
+      "My Clueless First Friend"
+    ]
+  },
+  {
+    "name": "Jitsu wa Watashi wa",
+    "afg": "jitsu-wa-watashi-wa",
+    "aliases": [
+      "Actually I Am…"
+    ]
+  },
+  {
+    "name": "JoJo’s Bizarre Adventure",
+    "afg": "jojos-bizarre-adventure"
+  },
+  {
+    "name": "Jujutsu Kaisen",
+    "afg": "jujutsu-kaisen"
+  },
+  {
+    "name": "Kaiju No. 8",
+    "afg": "kaiju-no-8",
+    "aliases": [
+      "Kaijuu 8-gou"
+    ]
+  },
+  {
+    "name": "Kakegurui",
+    "afg": "kakegurui"
+  },
+  {
+    "name": "Kakkou no Iinazuke",
+    "afg": "kakkou-no-iinazuke",
+    "aliases": [
+      "A Couple of Cuckoos"
+    ]
+  },
+  {
+    "name": "Kaminaki Sekai no Kamisama Katsudou",
+    "afg": "kaminaki-sekai-no-kamisama-katsudou",
+    "aliases": [
+      "KamiKatsu: Working for God in a Godless World"
+    ]
+  },
+  {
+    "name": "Kamonohashi Ron no Kindan Suiri",
+    "afg": "kamonohashi-ron-no-kindan-suiri",
+    "aliases": [
+      "Ron Kamonohashi’s Forbidden Deductions"
+    ]
+  },
+  {
+    "name": "Kanojo, Okarishimasu",
+    "afg": "kanojo-okarishimasu",
+    "aliases": [
+      "Rent-a-Girlfriend"
+    ]
+  },
+  {
+    "name": "Kareshi Kanojo no Jijou",
+    "afg": "kareshi-kanojo-no-jijou",
+    "aliases": [
+      "His and Her Circumstances"
+    ]
+  },
+  {
+    "name": "Katekyo Hitman Reborn!",
+    "afg": "katekyo-hitman-reborn"
+  },
+  {
+    "name": "Kawaii dake ja Nai Shikimori-san",
+    "afg": "kawaii-dake-ja-nai-shikimori-san",
+    "aliases": [
+      "Shikimori’s Not Just a Cutie"
+    ]
+  },
+  {
+    "name": "Kemono Jihen",
+    "afg": "kemono-jihen"
+  },
+  {
+    "name": "Kengan Ashura",
+    "afg": "kengan-ashura"
+  },
+  {
+    "name": "Kenichi",
+    "afg": "kenichi"
+  },
+  {
+    "name": "Kenka Dokugaku",
+    "afg": "kenka-dokugaku",
+    "aliases": [
+      "Viral Hit"
+    ]
+  },
+  {
+    "name": "Kimi ni Todoke",
+    "afg": "kimi-ni-todoke",
+    "aliases": [
+      "From Me To You"
+    ]
+  },
+  {
+    "name": "Kimi wa Houkago Insomnia",
+    "afg": "kimi-wa-houkago-insomnia",
+    "aliases": [
+      "Insomniacs After School"
+    ]
+  },
+  {
+    "name": "Kinsou no Vermeil",
+    "afg": "kinsou-no-vermeil",
+    "aliases": [
+      "Vermeil in Gold"
+    ]
+  },
+  {
+    "name": "Kiseijuu: Sei no Kakuritsu",
+    "afg": "kiseijuu-sei-no-kakuritsu",
+    "aliases": [
+      "Parasyte -the maxim-"
+    ]
+  },
+  {
+    "name": "Kishuku Gakkou no Juliet",
+    "afg": "kishuku-gakkou-no-juliet",
+    "aliases": [
+      "Boarding School Juliet"
+    ]
+  },
+  {
+    "name": "Koi to Uso",
+    "afg": "koi-to-uso",
+    "aliases": [
+      "Love and Lies"
+    ]
+  },
+  {
+    "name": "Koi wa Sekai Seifuku no Ato de",
+    "afg": "koi-wa-sekai-seifuku-no-ato-de",
+    "aliases": [
+      "Love After World Domination"
+    ]
+  },
+  {
+    "name": "Komi-san wa, Comyushou desu.",
+    "afg": "komi-san-wa-comyushou-desu",
+    "aliases": [
+      "Komi Can’t Communicate"
+    ]
+  },
+  {
+    "name": "Konjiki no Gash Bell!!",
+    "afg": "konjiki-no-gash-bell",
+    "aliases": [
+      "Zatch Bell!"
+    ]
+  },
+  {
+    "name": "Kono Oto Tomare!",
+    "afg": "kono-oto-tomare",
+    "aliases": [
+      "Sounds of Life"
+    ]
+  },
+  {
+    "name": "Koori Zokusei Danshi to Cool na Douryou Joshi",
+    "afg": "koori-zokusei-danshi-to-cool-na-douryou-joshi",
+    "aliases": [
+      "The Ice Guy and His Cool Female Colleague"
+    ]
+  },
+  {
+    "name": "Koroshi Ai",
+    "afg": "koroshi-ai",
+    "aliases": [
+      "Love of Kill"
+    ]
+  },
+  {
+    "name": "Kowloon Generic Romance",
+    "afg": "kowloon-generic-romance"
+  },
+  {
+    "name": "Kumichou Musume to Sewagakari",
+    "afg": "kumichou-musume-to-sewagakari",
+    "aliases": [
+      "The Yakuza’s Guide to Babysitting"
+    ]
+  },
+  {
+    "name": "Kyuujitsu no Warumono-san",
+    "afg": "kyuujitsu-no-warumono-san",
+    "aliases": [
+      "Mr. Villain’s Day Off"
+    ]
+  },
+  {
+    "name": "Loop 7-kaime no Akuyaku Reijou wa",
+    "afg": "loop-7-kaime-no-akuyaku-reijou-wa",
+    "aliases": [
+      "7th Time Loop"
+    ]
+  },
+  {
+    "name": "Lv1 Maou to One Room Yuusha",
+    "afg": "lv1-maou-to-one-room-yuusha",
+    "aliases": [
+      "Level 1 Demon Lord and One Room Hero"
+    ]
+  },
+  {
+    "name": "Made in Abyss",
+    "afg": "made-in-abyss"
+  },
+  {
+    "name": "Mahou Shoujo ni Akogarete",
+    "afg": "mahou-shoujo",
+    "aliases": [
+      "Gushing over Magical Girls"
+    ]
+  },
+  {
+    "name": "Mahoutsukai no Yome",
+    "afg": "mahoutsukai-no-yome",
+    "aliases": [
+      "The Ancient Magus Bride"
+    ]
+  },
+  {
+    "name": "Mairimashita! Iruma-kun",
+    "afg": "mairimashita-iruma-kun",
+    "aliases": [
+      "Welcome to Demon School! Iruma-kun"
+    ]
+  },
+  {
+    "name": "Mashle",
+    "afg": "mashle"
+  },
+  {
+    "name": "Mato Seihei no Slave",
+    "afg": "mato-seihei-no-slave",
+    "aliases": [
+      "Chained Soldier"
+    ]
+  },
+  {
+    "name": "Medaka Kuroiwa is Impervious to My Charms",
+    "afg": "medaka-kuroiwa-is-impervious-to-my-charms",
+    "aliases": [
+      "Kuroiwa Medaka ni Watashi no Kawaii ga Tsuujinai"
+    ]
+  },
+  {
+    "name": "Megami no Café Terrace",
+    "afg": "megami-no-cafe-terrace",
+    "aliases": [
+      "The Café Terrace and Its Goddesses"
+    ]
+  },
+  {
+    "name": "Mieruko-chan",
+    "afg": "mieruko-chan"
+  },
+  {
+    "name": "Mirai Nikki",
+    "afg": "mirai-nikki",
+    "aliases": [
+      "The Future Diary"
+    ]
+  },
+  {
+    "name": "Mob Psycho 100",
+    "afg": "mob-psycho-100"
+  },
+  {
+    "name": "Mokushiroku no Yonkishi",
+    "afg": "mokushiroku-no-yonkishi",
+    "aliases": [
+      "Four Knights of the Apocalypse"
+    ]
+  },
+  {
+    "name": "Munou na Nana",
+    "afg": "munou-na-nana",
+    "aliases": [
+      "Talentless Nana"
+    ]
+  },
+  {
+    "name": "My Dress-Up Darling",
+    "afg": "my-dress-up-darling",
+    "aliases": [
+      "Sono Bisque Doll wa Koi wo Suru"
+    ]
+  },
+  {
+    "name": "My Hero Academia",
+    "afg": "my-hero-academia",
+    "aliases": [
+      "Boku no Hero Academia"
+    ]
+  },
+  {
+    "name": "My Hero Academia: Vigilantes",
+    "afg": "my-hero-academia-vigilantes",
+    "aliases": [
+      "Vigilante: Boku no Hero Academia Illegals?"
+    ]
+  },
+  {
+    "name": "My Home Hero",
+    "afg": "my-home-hero"
+  },
+  {
+    "name": "Nanatsu no Taizai",
+    "afg": "nanatsu-no-taizai"
+  },
+  {
+    "name": "Naruto",
+    "afg": "naruto"
+  },
+  {
+    "name": "Naruto Shippuden",
+    "afg": "naruto-shippuden"
+  },
+  {
+    "name": "Nazo no Kanojo X",
+    "afg": "nazo-no-kanojo-x",
+    "aliases": [
+      "Mysterious Girlfriend X"
+    ]
+  },
+  {
+    "name": "Neon Genesis Evangelion",
+    "afg": "neon-genesis-evangelion"
+  },
+  {
+    "name": "No Guns Life",
+    "afg": "no-guns-life"
+  },
+  {
+    "name": "Noragami",
+    "afg": "noragami"
+  },
+  {
+    "name": "Ojou to Banken-kun",
+    "afg": "ojou-to-banken-kun",
+    "aliases": [
+      "A Girl & Her Guard Dog"
+    ]
+  },
+  {
+    "name": "One Piece",
+    "afg": "one-piece"
+  },
+  {
+    "name": "One-Punch Man",
+    "afg": "one-punch-man"
+  },
+  {
+    "name": "Orb: On the Movements of the Earth",
+    "afg": "orb-on-the-movements-of-the-earth",
+    "aliases": [
+      "Chi. Chikyuu no Undou ni Tsuite"
+    ]
+  },
+  {
+    "name": "Ore Monogatari!!",
+    "afg": "ore-monogatari"
+  },
+  {
+    "name": "Oshi no Ko",
+    "afg": "oshi-no-ko"
+  },
+  {
+    "name": "Otonari ni Ginga",
+    "afg": "otonari-ni-ginga",
+    "aliases": [
+      "A Galaxy Next Door"
+    ]
+  },
+  {
+    "name": "Ousama Ranking",
+    "afg": "ousama-ranking",
+    "aliases": [
+      "Ranking of Kings"
+    ]
+  },
+  {
+    "name": "Owari no Seraph",
+    "afg": "owari-no-seraph",
+    "aliases": [
+      "Seraph of the End"
+    ]
+  },
+  {
+    "name": "Paripi Koumei",
+    "afg": "paripi-koumei",
+    "aliases": [
+      "Ya Boy Kongming!"
+    ]
+  },
+  {
+    "name": "Pokemon",
+    "afg": "pokemon"
+  },
+  {
+    "name": "Psycho-Pass",
+    "afg": "psycho-pass"
+  },
+  {
+    "name": "Ragna Crimson",
+    "afg": "ragna-crimson"
+  },
+  {
+    "name": "Rave Master",
+    "afg": "rave-master"
+  },
+  {
+    "name": "Rikei ga Koi ni Ochita no de Shoumei shitemita.",
+    "afg": "rikei-ga-koi-ni-ochita-no-de-shoumei-shitemita",
+    "aliases": [
+      "Science Fell in Love, So I Tried to Prove It"
+    ]
+  },
+  {
+    "name": "Rooster Fighter",
+    "afg": "rooster-fighter",
+    "aliases": [
+      "Niwatori Fighter"
+    ]
+  },
+  {
+    "name": "Rurouni Kenshin (1996)",
+    "afg": "rurouni-kenshin-1996"
+  },
+  {
+    "name": "Rurouni Kenshin (2023)",
+    "afg": "rurouni-kenshin-2023"
+  },
+  {
+    "name": "Sailor Moon",
+    "afg": "bishoujo-senshi-sailor-moon"
+  },
+  {
+    "name": "Saint Seiya",
+    "afg": "saint-seiya"
+  },
+  {
+    "name": "Saint Seiya: The Lost Canvas",
+    "afg": "saint-seiya-the-lost-canvas"
+  },
+  {
+    "name": "Sakamoto Days",
+    "afg": "sakamoto-days"
+  },
+  {
+    "name": "Samurai Champloo",
+    "afg": "samurai-champloo"
+  },
+  {
+    "name": "Sanda",
+    "afg": "sanda"
+  },
+  {
+    "name": "Seishun Buta Yarou wa Bunny Girl Senpai no Yume wo Minai",
+    "afg": "seishun-buta-yarou",
+    "aliases": [
+      "Rascal Does Not Dream of Bunny Girl Senpai"
+    ]
+  },
+  {
+    "name": "Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su",
+    "afg": "shangri-la-frontier"
+  },
+  {
+    "name": "Shinigami Bocchan to Kuro Maid",
+    "afg": "shinigami-bocchan-to-kuro-maid",
+    "aliases": [
+      "The Duke of Death and His Maid"
+    ]
+  },
+  {
+    "name": "Shokugeki no Soma",
+    "afg": "shokugeki-no-soma",
+    "aliases": [
+      "Food Wars!"
+    ]
+  },
+  {
+    "name": "Shuumatsu no Harem",
+    "afg": "shuumatsu-no-harem",
+    "aliases": [
+      "World’s End Harem"
+    ]
+  },
+  {
+    "name": "Shuumatsu No Valkyrie",
+    "afg": "shuumatsu-no-valkyrie",
+    "aliases": [
+      "Record of Ragnarok"
+    ]
+  },
+  {
+    "name": "Shy",
+    "afg": "shy"
+  },
+  {
+    "name": "Skip to Loafer",
+    "afg": "skip-to-loafer",
+    "aliases": [
+      "Skip and Loafer"
+    ]
+  },
+  {
+    "name": "Slam Dunk",
+    "afg": "slam-dunk"
+  },
+  {
+    "name": "Solo Leveling",
+    "afg": "solo-leveling",
+    "aliases": [
+      "Ore dake Level Up na Ken"
+    ]
+  },
+  {
+    "name": "Somali to Mori no Kamisama",
+    "afg": "somali-to-mori-no-kamisama",
+    "aliases": [
+      "Somali and the Forest Spirit"
+    ]
+  },
+  {
+    "name": "Soul Eater",
+    "afg": "soul-eater"
+  },
+  {
+    "name": "SPY x FAMILY",
+    "afg": "spy-x-family"
+  },
+  {
+    "name": "Suki na Ko ga Megane wo Wasureta",
+    "afg": "suki-na-ko-ga-megane-wo-wasureta",
+    "aliases": [
+      "The Girl I Like Forgot Her Glasses"
+    ]
+  },
+  {
+    "name": "Suki tte Ii na yo.",
+    "afg": "suki-tte-ii-na-yo"
+  },
+  {
+    "name": "Sword Art Online",
+    "afg": "sword-art-online"
+  },
+  {
+    "name": "Taishou Otome Otogibanashi",
+    "afg": "taishou-otome-otogibanashi",
+    "aliases": [
+      "Taisho Otome Fairy Tale"
+    ]
+  },
+  {
+    "name": "Tamon’s B-Side",
+    "afg": "tamons-b-side",
+    "aliases": [
+      "Tamon-kun Ima Docchi!?"
+    ]
+  },
+  {
+    "name": "Temple",
+    "afg": "temple",
+    "aliases": [
+      "TenPuru: No One Can Live on Loneliness"
+    ]
+  },
+  {
+    "name": "The 100 Girlfriends Who Really, Really, Really, Really, Really Love You",
+    "afg": "the-100-girlfriend",
+    "aliases": [
+      "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo"
+    ]
+  },
+  {
+    "name": "The Beginning After the End",
+    "afg": "the-beginning-after-the-end",
+    "aliases": [
+      "Saikyou no Ousama, Nidome no Jinsei wa Nani wo Suru?"
+    ]
+  },
+  {
+    "name": "The Case Study of Vanitas",
+    "afg": "the-case-study-of-vanitas",
+    "aliases": [
+      "Vanitas no Carte"
+    ]
+  },
+  {
+    "name": "The Fragrant Flower Blooms with Dignity",
+    "afg": "the-fragrant-flower-blooms-with-dignity",
+    "aliases": [
+      "Kaoru Hana wa Rin to Saku"
+    ]
+  },
+  {
+    "name": "The Shiunji Family Children",
+    "afg": "the-shiunji-family-children",
+    "aliases": [
+      "Shiunji-ke no Kodomotachi"
+    ]
+  },
+  {
+    "name": "The Summer Hikaru Died",
+    "afg": "the-summer-hikaru-died",
+    "aliases": [
+      "Hikaru ga Shinda Natsu"
+    ]
+  },
+  {
+    "name": "Tokko",
+    "afg": "tokko"
+  },
+  {
+    "name": "Tokyo Ghoul",
+    "afg": "tokyo-ghoul"
+  },
+  {
+    "name": "Tokyo Revengers",
+    "afg": "tokyo-revengers"
+  },
+  {
+    "name": "Tomodachi Game",
+    "afg": "tomodachi-game"
+  },
+  {
+    "name": "Toriko",
+    "afg": "toriko"
+  },
+  {
+    "name": "Tougen Anki",
+    "afg": "tougen-anki"
+  },
+  {
+    "name": "Trigun",
+    "afg": "trigun"
+  },
+  {
+    "name": "Tsuki ga Michibiku Isekai Douchuu",
+    "afg": "tsuki-ga-michibiku-isekai-douchuu",
+    "aliases": [
+      "Tsukimichi: Moonlight Fantasy"
+    ]
+  },
+  {
+    "name": "Twin Star Exorcists",
+    "afg": "twin-star-exorcists",
+    "aliases": [
+      "Sousei no Onmyouji"
+    ]
+  },
+  {
+    "name": "Tying the Knot with an Amagami Sister",
+    "afg": "tying-the-knot-with-an-amagami-sister",
+    "aliases": [
+      "Amagami-san Chi no Enmusubi"
+    ]
+  },
+  {
+    "name": "Undead Unluck",
+    "afg": "undead-unluck"
+  },
+  {
+    "name": "Under Ninja",
+    "afg": "under-ninja"
+  },
+  {
+    "name": "Uzaki-chan wa Asobitai!",
+    "afg": "uzaki-chan-wa-asobitai",
+    "aliases": [
+      "Uzaki-chan Wants to Hang Out!"
+    ]
+  },
+  {
+    "name": "Val x Love",
+    "afg": "val-x-love"
+  },
+  {
+    "name": "Vampire Knight",
+    "afg": "vampire-knight"
+  },
+  {
+    "name": "Vinland Saga",
+    "afg": "vinland-saga"
+  },
+  {
+    "name": "Watashi no Yuri wa Oshigoto desu!",
+    "afg": "watashi-no-yuri-wa-oshigoto-desu",
+    "aliases": [
+      "Yuri is My Job!"
+    ]
+  },
+  {
+    "name": "WIND BREAKER",
+    "afg": "wind-breaker"
+  },
+  {
+    "name": "Witch Craft Works",
+    "afg": "witch-craft-works"
+  },
+  {
+    "name": "Witch Hat Atelier",
+    "afg": "witch-hat-atelier"
+  },
+  {
+    "name": "Witch Watch",
+    "afg": "witch-watch"
+  },
+  {
+    "name": "World Trigger",
+    "afg": "world-trigger"
+  },
+  {
+    "name": "Wotaku ni Koi wa Muzukashii",
+    "afg": "wotaku-ni-koi-wa-muzukashii",
+    "aliases": [
+      "Wotakoi: Love is Hard for Otaku"
+    ]
+  },
+  {
+    "name": "Yakusoku no Neverland",
+    "afg": "yakusoku-no-neverland",
+    "aliases": [
+      "The Promised Neverland"
+    ]
+  },
+  {
+    "name": "Yamada-kun to 7-nin no Majo",
+    "afg": "yamada-kun-to-7-nin-no-majo",
+    "aliases": [
+      "Yamada-kun And The Seven Witches"
+    ]
+  },
+  {
+    "name": "Yamada-kun to Lv999 no Koi wo Suru",
+    "afg": "yamada-kun-to-lv999-no-koi-wo-suru",
+    "aliases": [
+      "My Love Story with Yamada-kun at Lv999"
+    ]
+  },
+  {
+    "name": "Yofukashi no Uta",
+    "afg": "yofukashi-no-uta",
+    "aliases": [
+      "Call of the Night"
+    ]
+  },
+  {
+    "name": "You and I Are Polar Opposites",
+    "afg": "you-and-i-are-polar-opposites",
+    "aliases": [
+      "Seihantai na Kimi to Boku"
+    ]
+  },
+  {
+    "name": "Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e",
+    "afg": "youkoso-jitsuryoku-shijou-shugi-no-kyoushitsu-e",
+    "aliases": [
+      "Classroom of the Elite"
+    ]
+  },
+  {
+    "name": "Yu Yu Hakusho",
+    "afg": "yu-yu-hakusho"
+  },
+  {
+    "name": "Yu-Gi-Oh!",
+    "afg": "yu-gi-oh"
+  },
+  {
+    "name": "Yuragi-sou no Yuuna-san",
+    "afg": "yuragi-sou-no-yuuna-san",
+    "aliases": [
+      "Yuuna and the Haunted Hot Springs"
+    ]
+  },
+  {
+    "name": "Zom 100: Zombie ni Naru made ni Shitai 100 no Koto",
+    "afg": "zom-100-zombie-ni-naru-made-ni-shitai-100-no-koto"
+  }
+]

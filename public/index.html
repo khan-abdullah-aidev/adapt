@@ -20,16 +20,18 @@
         <form class="panel" id="lookup-form">
           <label class="field">
             <span>Series</span>
-            <input id="anime" name="anime" autocomplete="off" spellcheck="false" placeholder="e.g. One Piece">
+            <input id="anime" name="anime" list="series-options" autocomplete="off" spellcheck="false" placeholder="e.g. One Piece">
+            <datalist id="series-options"></datalist>
           </label>
 
           <div class="mode-toggle" id="mode-toggle" role="group" aria-label="Lookup type">
             <button type="button" class="mode-btn active" id="mode-episode" data-mode="episode">Episode</button>
             <button type="button" class="mode-btn" id="mode-movie" data-mode="movie">Movie</button>
+            <button type="button" class="mode-btn" id="mode-start" data-mode="start">Start reading</button>
           </div>
 
-          <div class="converter">
-            <label class="tile">
+          <div class="converter" id="converter">
+            <label class="tile" id="from-tile">
               <span id="from-label">Episode</span>
               <input id="number" name="number" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="1090">
               <input id="movie-name" name="movieName" autocomplete="off" spellcheck="false" placeholder="e.g. Infinity Castle" hidden>
@@ -39,13 +41,10 @@
               ↔
             </button>
 
-            <button class="tile result-tile" id="result-tile" type="button" aria-label="Reveal answer">
-              <span class="tile-head">
-                <span id="to-label">Chapter</span>
-                <span class="reveal-hint" id="reveal-hint">tap to reveal</span>
-              </span>
+            <div class="tile result-tile" id="result-tile" aria-live="polite">
+              <span class="tile-head" id="to-label">Chapter</span>
               <span class="answer answer-idle" id="answer">—</span>
-            </button>
+            </div>
           </div>
 
           <button class="find" id="find" type="submit" disabled>
@@ -55,13 +54,12 @@
         </form>
 
         <section class="meta" id="meta" hidden>
-          <div class="meta-body" id="meta-body">
-            <p id="result-sentence"></p>
-          </div>
+          <p id="result-sentence"></p>
           <div class="source-row">
             <span id="cache-badge" class="badge" hidden>cached</span>
             <a id="source-link" href="#" target="_blank" rel="noreferrer" hidden>source</a>
-            <button type="button" id="recheck-btn" class="recheck" hidden>Wrong? Re-check</button>
+            <button type="button" id="share-btn" class="chip-btn share" hidden>Copy link</button>
+            <button type="button" id="recheck-btn" class="chip-btn recheck" hidden>Wrong? Re-check</button>
           </div>
         </section>
 

@@ -62,6 +62,23 @@ const cases = [
     name: "Demon Slayer movie Infinity Castle Part 2 -> Chapters 157-180",
     request: { anime: "Demon Slayer", mode: "movie", movieName: "Infinity Castle Part 2" },
     expect: { status: "found", matched_numbers: ["157", "180"] }
+  },
+  // Series registry: alternate titles and typos resolve to the canonical series (and its real wiki).
+  {
+    name: "Kimetsu no Yaiba (alternate title) Episode 5 -> Chapters 8-9",
+    request: { anime: "Kimetsu no Yaiba", number: "5", direction: "episode-to-chapter" },
+    expect: { status: "found", series: "Demon Slayer", matched_numbers: ["8", "9"] }
+  },
+  {
+    name: "Jujutsu Kaisn (typo) Episode 30 -> Chapters 64, 79-80",
+    request: { anime: "Jujutsu Kaisn", number: "30", direction: "episode-to-chapter" },
+    expect: { status: "found", series: "Jujutsu Kaisen", matched_numbers: ["64", "79", "80"] }
+  },
+  // Where to start reading - finished anime, so the answer shouldn't move.
+  {
+    name: "My Hero Academia: start reading at Chapter 431",
+    request: { anime: "My Hero Academia", mode: "start" },
+    expect: { status: "found", matched_numbers: ["431"] }
   }
 ];
 
@@ -95,6 +112,9 @@ async function runCase(testCase) {
   if (data.status !== testCase.expect.status) {
     return { pass: false, detail: `expected status "${testCase.expect.status}", got "${data.status}"` };
   }
+  if (testCase.expect.series && data.series !== testCase.expect.series) {
+    return { pass: false, detail: `expected series "${testCase.expect.series}", got "${data.series}"` };
+  }
   if (testCase.expect.matched_range && data.matched_range !== testCase.expect.matched_range) {
     return { pass: false, detail: `expected matched_range "${testCase.expect.matched_range}", got "${data.matched_range}"` };
   }
@@ -104,6 +124,26 @@ async function runCase(testCase) {
     return { pass: false, detail: `expected matched_range to include ${missing.join(", ")}, got "${data.matched_range}"` };
   }
   return { pass: true, detail: JSON.stringify(data) };
+}
+
+// The UI's streamed mode: progress lines, then exactly one final result line.
+async function checkStreaming() {
+  const response = await fetch(`${BASE_URL}/api/lookup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ anime: "Black Clover", number: "12", direction: "episode-to-chapter", refresh: USE_REFRESH, stream: true })
+  });
+  const events = (await response.text()).split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const progress = events.filter((event) => event.type === "progress");
+  const finals = events.filter((event) => event.type !== "progress");
+  if (!response.headers.get("content-type")?.includes("application/x-ndjson")) {
+    return { pass: false, detail: `content-type ${response.headers.get("content-type")}` };
+  }
+  if (finals.length !== 1 || finals[0].type !== "result" || events.at(-1) !== finals[0]) {
+    return { pass: false, detail: `expected one trailing result line, got ${JSON.stringify(finals)}` };
+  }
+  if (USE_REFRESH && !progress.length) return { pass: false, detail: "no progress lines" };
+  return { pass: true, detail: `${progress.length} progress lines (${progress.map((event) => event.message).join(" > ")}), then ${finals[0].status}` };
 }
 
 async function main() {
@@ -123,11 +163,15 @@ async function main() {
     await waitForServer();
     console.log("Server is up. Running test cases sequentially...\n");
 
+    const checks = [
+      ...cases.map((testCase) => ({ name: testCase.name, run: () => runCase(testCase) })),
+      { name: "Streamed lookup reports progress, then one result", run: checkStreaming }
+    ];
     let passCount = 0;
-    for (const testCase of cases) {
-      process.stdout.write(`  ${testCase.name} ... `);
+    for (const check of checks) {
+      process.stdout.write(`  ${check.name} ... `);
       try {
-        const result = await runCase(testCase);
+        const result = await check.run();
         if (result.pass) {
           passCount++;
           console.log(`PASS (${result.detail})`);
@@ -139,8 +183,8 @@ async function main() {
       }
     }
 
-    console.log(`\n${passCount}/${cases.length} passed.`);
-    exitCode = passCount === cases.length ? 0 : 1;
+    console.log(`\n${passCount}/${checks.length} passed.`);
+    exitCode = passCount === checks.length ? 0 : 1;
   } catch (error) {
     console.error("Setup failed:", error.message);
     console.error("Server output so far:\n" + serverOutput);

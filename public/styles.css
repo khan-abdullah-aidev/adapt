@@ -114,7 +114,7 @@ a:focus-visible {
 
 .mode-toggle {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   padding: 4px;
   margin-bottom: 14px;
@@ -152,6 +152,10 @@ a:focus-visible {
   grid-template-columns: 1fr auto 1fr;
   gap: 10px;
   align-items: stretch;
+}
+
+.converter.single {
+  grid-template-columns: 1fr;
 }
 
 #movie-name {
@@ -199,34 +203,7 @@ a:focus-visible {
 }
 
 .result-tile {
-  cursor: default;
   text-align: left;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.result-tile.revealable {
-  border-color: #57c7bf;
-  box-shadow: 0 0 0 3px rgba(87, 199, 191, 0.08);
-  cursor: pointer;
-}
-
-.tile-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.reveal-hint {
-  display: none;
-  color: #57c7bf;
-  font-size: 10px;
-  letter-spacing: 0.3px;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.result-tile.revealable .reveal-hint {
-  display: inline;
 }
 
 .answer {
@@ -238,7 +215,6 @@ a:focus-visible {
   font-weight: 600;
   line-height: 1.1;
   overflow-wrap: anywhere;
-  transition: filter 0.4s ease;
 }
 
 .answer-idle {
@@ -252,21 +228,21 @@ a:focus-visible {
   line-height: 1.25;
 }
 
-.answer-filler {
+.answer-filler,
+.answer-complete {
   color: #7c9be0;
   font-size: 15px;
   font-weight: 500;
   line-height: 1.25;
 }
 
+.answer-complete {
+  color: #57c7bf;
+}
+
 .answer-error {
   color: #c56b6b;
   font-size: 14px;
-}
-
-.blurred {
-  filter: blur(9px);
-  user-select: none;
 }
 
 .shimmer {
@@ -343,13 +319,9 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-.meta-body.blurred {
-  filter: blur(8px);
-  pointer-events: none;
-}
-
 .source-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   border-top: 1px solid #21242c;
@@ -365,6 +337,7 @@ a:focus-visible {
   font-size: 11px;
   padding: 5px 8px;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .source-row a:hover {
@@ -372,8 +345,7 @@ a:focus-visible {
   color: #57c7bf;
 }
 
-.recheck {
-  margin-left: auto;
+.chip-btn {
   border: 1px solid #303541;
   border-radius: 999px;
   background: none;
@@ -382,7 +354,17 @@ a:focus-visible {
   font-size: 11px;
   padding: 5px 8px;
   cursor: pointer;
+  white-space: nowrap;
   transition: border-color 0.15s, color 0.15s;
+}
+
+.share:hover {
+  border-color: #57c7bf;
+  color: #57c7bf;
+}
+
+.recheck {
+  margin-left: auto;
 }
 
 .recheck:hover {
@@ -473,6 +455,11 @@ a:focus-visible {
   .shell {
     align-items: flex-start;
     padding: 34px 14px;
+  }
+
+  .mode-btn {
+    font-size: 11px;
+    letter-spacing: 0;
   }
 
   .converter {

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check lib/extraction.js",
+    "check": "node --check server.js && node --check lib/extraction.js && node --check lib/series.js",
+    "update-series": "node scripts/update-series.mjs",
     "test": "node --test test/extraction.test.mjs",
     "test:live": "node test/regression.mjs"
   },

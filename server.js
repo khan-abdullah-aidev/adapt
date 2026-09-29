@@ -5,18 +5,28 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   EXTRACTOR_RESPONSE_FORMAT,
+  READING_START_RESPONSE_FORMAT,
+  THIN_SNIPPET_THRESHOLD,
   TransientModelError,
   cacheKey,
   directMappingFromResults,
+  fandomApiUrl,
   interpretOpenRouterResponse,
   normalizeDirection,
+  normalizeExtractorResponse,
   normalizeMovieName,
+  normalizeReadingStartResponse,
   normalizeText,
+  parseInfoboxFields,
+  readingStartPrompt,
   strictExtractionPrompt,
   strictMovieExtractionPrompt,
+  stripHtml,
   validateAgainstSource,
-  validateMovieAgainstSource
+  validateMovieAgainstSource,
+  validateReadingStart
 } from "./lib/extraction.js";
+import { resolveSeries, seriesList } from "./lib/series.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -115,9 +125,12 @@ async function writeCache(cache) {
   await fs.rename(temp, cachePath);
 }
 
-async function getCached(key) {
+async function getCached(key, maxAgeMs = Infinity) {
   const cache = await readCache();
-  return cache[key]?.response || null;
+  const entry = cache[key];
+  if (!entry?.response) return null;
+  if (Date.now() - Date.parse(entry.cached_at) > maxAgeMs) return null;
+  return entry.response;
 }
 
 async function setCached(key, response, request) {
@@ -159,8 +172,9 @@ class ExtractorUnavailableError extends Error {}
 
 // Retries `fn` up to `attempts` total tries with a short, linearly increasing backoff between
 // attempts (so a transient timeout/connection error/5xx doesn't fail the whole lookup outright).
-// `shouldRetry` can veto a retry for errors that would just fail the same way again.
-async function withRetry(fn, { attempts = 3, baseDelayMs = 1000, shouldRetry = () => true } = {}) {
+// `shouldRetry` can veto a retry for errors that would just fail the same way again; `onRetry` is
+// told before each retry.
+async function withRetry(fn, { attempts = 3, baseDelayMs = 1000, shouldRetry = () => true, onRetry = () => {} } = {}) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
@@ -168,6 +182,7 @@ async function withRetry(fn, { attempts = 3, baseDelayMs = 1000, shouldRetry = (
     } catch (error) {
       lastError = error;
       if (attempt === attempts - 1 || !shouldRetry(error)) break;
+      onRetry(error);
       await sleep(baseDelayMs * (attempt + 1));
     }
   }
@@ -199,6 +214,13 @@ function buildMovieSearchQuery(anime, movieName) {
     `"${anime}" "${movieName}" manga chapter equivalent corresponding arc`,
     "(site:listfist.com OR site:animefillerguide.com OR site:fandom.com)",
     "adapted chapters arc statistics"
+  ].join(" ");
+}
+
+function buildReadingStartQuery(anime) {
+  return [
+    `"${anime}" where does the anime end which manga chapter to start reading after the anime`,
+    "(site:animefillerguide.com OR site:fandom.com)"
   ].join(" ");
 }
 
@@ -272,113 +294,65 @@ async function searchBrave(query) {
   }));
 }
 
-function searchWith(provider, query) {
-  return provider === "tavily" ? searchTavily(query) : searchBrave(query);
-}
-
-async function runSearch(anime, number, direction) {
-  const provider = selectedProvider();
-  const query = buildSearchQuery(anime, number, direction);
-  // The tracker pages don't depend on the search results, so fetch them while the search runs.
-  const trackerFetch = fetchPages(trackerPages(anime));
-  const results = (await searchWith(provider, query))
-    .filter((item) => item.snippet || item.title || item.url)
-    .slice(0, 8);
-
-  const pageLabel = direction === "episode-to-chapter" ? "Episode" : "Chapter";
-  const directFetch = fetchPages(directSourceCandidates({ anime, number, direction, results })
-    .map((url) => ({ url, title: `${anime} ${pageLabel} ${number}` })));
-  const [directPages, trackerPagesFetched] = await Promise.all([directFetch, trackerFetch]);
-
-  return {
-    provider,
-    query,
-    results: mergeFetchedPages(results, [...directPages, ...trackerPagesFetched])
-  };
-}
-
-// Movies don't have a predictable per-page wiki URL slug to guess (unlike Episode_N/Chapter_N), so
-// there's no equivalent of directSourceCandidates here - only the anime-level tracker pages, which
-// still might mention the movie's manga tie-in.
-async function runMovieSearch(anime, movieName) {
-  const provider = selectedProvider();
-  const query = buildMovieSearchQuery(anime, movieName);
-  const trackerFetch = fetchPages(trackerPages(anime));
-  const results = (await searchWith(provider, query))
-    .filter((item) => item.snippet || item.title || item.url)
-    .slice(0, 8);
-
-  return {
-    provider,
-    query,
-    results: mergeFetchedPages(results, await trackerFetch)
-  };
-}
-
-function animeSlugVariants(anime) {
-  const compact = anime.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const dashed = anime.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return [...new Set([compact, dashed].filter(Boolean))];
-}
-
-function fandomHostsFromResults(anime, results) {
-  const hosts = new Set(animeSlugVariants(anime).map((slug) => `${slug}.fandom.com`));
-  for (const item of results) {
-    try {
-      const host = new URL(item.url).hostname.toLowerCase();
-      if (host.endsWith(".fandom.com")) hosts.add(host);
-    } catch {}
-  }
-  return [...hosts];
-}
-
-function directSourceCandidates({ anime, number, direction, results }) {
-  const page = direction === "episode-to-chapter" ? `Episode_${number}` : `Chapter_${number}`;
-  return fandomHostsFromResults(anime, results).map((host) => `https://${host}/wiki/${page}`);
+async function searchWith(provider, query) {
+  const results = provider === "tavily" ? await searchTavily(query) : await searchBrave(query);
+  return results.filter((item) => item.snippet || item.title || item.url).slice(0, 8);
 }
 
 function animeSlug(anime) {
   return anime.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function listFistCandidateUrls(anime) {
-  const slug = animeSlug(anime);
-  if (!slug) return [];
-  // This single page tracks both directions (it lists each episode alongside its source chapter(s)).
-  return [`https://listfist.com/list-of-${slug}-episode-to-chapter-conversion`];
+function animeSlugVariants(anime) {
+  const compact = anime.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const dashed = animeSlug(anime);
+  return [...new Set([compact, dashed].filter(Boolean))];
 }
 
-function animeFillerGuideCandidateUrls(anime) {
-  const slug = animeSlug(anime);
-  if (!slug) return [];
-  // Covers series ListFist doesn't track, and explicitly labels each episode Filler/Canon/Mixed
-  // alongside its source chapter(s) - the clearest signal for the "filler" (no manga source) case.
-  return [`https://www.animefillerguide.com/${slug}/`];
+// Known series come from the registry (lib/series.js), which knows each one's real source URLs.
+// Anything else falls back to guessing them from the typed name.
+function describeSeries(input) {
+  const known = resolveSeries(input);
+  if (known) return known;
+  const slug = animeSlug(input);
+  return { name: input, aliases: [], afg: slug || null, listfist: slug || null, fandom: null };
+}
+
+// The Fandom wikis trusted to be about this series: the registry's for known series, otherwise hosts
+// guessed from the name. Search results can't widen this - they routinely include same-numbered pages
+// from unrelated wikis.
+function trustedFandomHosts(series) {
+  return series.fandom ? [series.fandom] : animeSlugVariants(series.name).map((slug) => `${slug}.fandom.com`);
+}
+
+function directSourceCandidates({ series, number, direction }) {
+  const page = direction === "episode-to-chapter" ? `Episode_${number}` : `Chapter_${number}`;
+  return trustedFandomHosts(series).map((host) => `https://${host}/wiki/${page}`);
 }
 
 // Tabular conversion trackers often don't surface well as generic search snippets, so fetch the
-// known tracker pages directly rather than relying on search hits.
-function trackerPages(anime) {
-  return [
-    ...listFistCandidateUrls(anime).map((url) => ({ url, title: `${anime} Episode to Chapter Conversion List` })),
-    ...animeFillerGuideCandidateUrls(anime).map((url) => ({ url, title: `${anime} Filler List & Episode to Chapter Conversion Guide` }))
-  ];
+// known tracker pages directly rather than relying on search hits. ListFist's single page tracks both
+// directions (each episode alongside its source chapter(s)); Anime Filler Guide covers far more series
+// and explicitly labels each episode Filler/Canon/Mixed - the clearest signal for the filler case.
+function trackerPages(series) {
+  const pages = [];
+  if (series.listfist) {
+    pages.push({
+      url: `https://listfist.com/list-of-${series.listfist}-episode-to-chapter-conversion`,
+      title: `${series.name} Episode to Chapter Conversion List`
+    });
+  }
+  if (series.afg) {
+    pages.push({
+      url: `https://www.animefillerguide.com/anime/${series.afg}/`,
+      title: `${series.name} Filler List & Episode to Chapter Conversion Guide`
+    });
+  }
+  return pages;
 }
 
-function stripHtml(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function fetchPageTextOnce(url) {
+// Returns the page's HTML, or the parsed body for JSON responses (the Fandom API), or null.
+async function fetchBodyOnce(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
@@ -395,30 +369,56 @@ async function fetchPageTextOnce(url) {
     if (response.status >= 500) throw new Error(`fetch ${url} failed with ${response.status}`);
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) return response.json();
     if (!contentType.includes("text/html")) return null;
-    return stripHtml(await response.text());
+    return response.text();
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function fetchPageText(url) {
+async function fetchBody(url) {
   try {
-    return await withRetry(() => fetchPageTextOnce(url), { attempts: 2, baseDelayMs: 500 });
+    return await withRetry(() => fetchBodyOnce(url), { attempts: 2, baseDelayMs: 500 });
   } catch {
     return null;
   }
 }
 
+// Fandom articles go through the MediaWiki API (plain page requests get a 403), which also yields the
+// infobox fields that power the no-LLM fast path. Everything else is fetched as a normal page.
+async function fetchSourcePage(url) {
+  const apiUrl = fandomApiUrl(url);
+  if (apiUrl) {
+    const data = await fetchBody(apiUrl);
+    const html = data?.parse?.text;
+    if (typeof html !== "string") return null;
+    return { snippet: stripHtml(html), infobox: parseInfoboxFields(html) };
+  }
+  const html = await fetchBody(url);
+  return typeof html === "string" ? { snippet: stripHtml(html) } : null;
+}
+
 // Fetches all pages concurrently - each one can take several seconds (or a full timeout plus a
 // retry), so fetching them one after another made every slow source add to the lookup time.
 async function fetchPages(pages) {
-  const texts = await Promise.all(pages.map(({ url }) => fetchPageText(url)));
+  const fetched = await Promise.all(pages.map(({ url }) => fetchSourcePage(url)));
   return pages.map((page, index) => {
-    const text = texts[index];
-    if (process.env.ADAPT_DEBUG) console.log("FETCH_PAGE", page.url, text ? `ok len=${text.length}` : "FAILED/null");
-    return { ...page, snippet: text };
+    const content = fetched[index];
+    if (process.env.ADAPT_DEBUG) console.log("FETCH_PAGE", page.url, content ? `ok len=${content.snippet.length}${content.infobox ? ` infobox=${content.infobox.length}` : ""}` : "FAILED/null");
+    return { ...page, ...content };
   });
+}
+
+// Search hits on Fandom often come back as a one-line preview. Re-fetch a few of those through the API
+// so the extractor sees the full article instead - only from the series' own wiki when it's known, so
+// pages from unrelated wikis don't get upgraded into full-confidence sources.
+function thinFandomResults(results, alreadyFetching, series) {
+  return results
+    .filter((item) => item.snippet.length < THIN_SNIPPET_THRESHOLD && fandomApiUrl(item.url) && !alreadyFetching.includes(item.url))
+    .filter((item) => !series.fandom || new URL(item.url).hostname.toLowerCase() === series.fandom)
+    .slice(0, 3)
+    .map(({ url, title }) => ({ url, title }));
 }
 
 // Upserts each successfully fetched page into the search results (keyed by url) with its full text,
@@ -428,9 +428,9 @@ async function fetchPages(pages) {
 // text, not skipped, or the answer that page actually contains is silently dropped.
 function mergeFetchedPages(results, pages) {
   const merged = [...results];
-  for (const { title, url, snippet } of pages) {
+  for (const { title, url, snippet, infobox } of pages) {
     if (!snippet) continue;
-    const entry = { title, url, snippet };
+    const entry = { title, url, snippet, ...(infobox ? { infobox } : {}) };
     const existingIndex = merged.findIndex((item) => item.url === url);
     if (existingIndex === -1) {
       merged.unshift(entry);
@@ -439,6 +439,32 @@ function mergeFetchedPages(results, pages) {
     }
   }
   return merged.slice(0, 12);
+}
+
+// Shared shape of every lookup's retrieval step: search while the tracker pages download, then fetch
+// whatever Fandom pages the search results point at, and merge it all into one source list.
+async function gatherSources({ series, query, fandomPages = () => [] }, progress) {
+  const provider = selectedProvider();
+  progress("Searching the web");
+  const trackerFetch = fetchPages(trackerPages(series));
+  // When the series' wiki is known, hits from other Fandom wikis are about other series.
+  const results = (await searchWith(provider, query)).filter((item) => {
+    if (!series.fandom || !fandomApiUrl(item.url)) return true;
+    return new URL(item.url).hostname.toLowerCase() === series.fandom;
+  });
+
+  const wikiPages = fandomPages(results);
+  const upgrades = thinFandomResults(results, wikiPages.map((page) => page.url), series);
+  if (wikiPages.length || upgrades.length) progress("Checking the wiki");
+  const [wikiFetched, trackersFetched] = await Promise.all([fetchPages([...wikiPages, ...upgrades]), trackerFetch]);
+  const merged = mergeFetchedPages(results, [...wikiFetched, ...trackersFetched]);
+
+  if (process.env.ADAPT_DEBUG) {
+    console.log("QUERY", query);
+    console.log("RESULTS", merged.map((r) => ({ title: r.title, url: r.url, len: r.snippet.length, infobox: Boolean(r.infobox) })));
+  }
+  progress(`Reading ${merged.length} source${merged.length === 1 ? "" : "s"}`);
+  return { provider, query, results: merged };
 }
 
 function candidateModels() {
@@ -450,7 +476,7 @@ function candidateModels() {
   return [...new Set([primary, ...fallbacks].filter(Boolean))];
 }
 
-async function callOpenRouterModel(model, promptText) {
+async function callOpenRouterModel(model, promptText, { responseFormat, normalize }) {
   const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -463,7 +489,7 @@ async function callOpenRouterModel(model, promptText) {
       model,
       temperature: 0,
       max_tokens: Number(process.env.OPENROUTER_MAX_TOKENS || 2000),
-      response_format: EXTRACTOR_RESPONSE_FORMAT,
+      response_format: responseFormat,
       messages: [
         {
           role: "system",
@@ -479,7 +505,7 @@ async function callOpenRouterModel(model, promptText) {
 
   const body = await response.text().catch(() => "");
   if (process.env.ADAPT_DEBUG) console.log(`FULL OPENROUTER RESPONSE (${model}, HTTP ${response.status})`, body.slice(0, 3000));
-  return interpretOpenRouterResponse(model, response.status, body);
+  return interpretOpenRouterResponse(model, response.status, body, normalize);
 }
 
 // Free-tier OpenRouter models are prone to transient provider-side failures ("Service temporarily
@@ -488,18 +514,23 @@ async function callOpenRouterModel(model, promptText) {
 // failures before moving on to the next model; failures that would only repeat (bad request, unknown
 // model, truncated output, a 30s timeout) skip straight to the next model. A model saying "not
 // found" is a valid answer and is NOT retried against the next model.
-async function extractWithModelFallback(promptText, validateFn) {
+async function extractWithModelFallback(promptText, validateFn, progress, {
+  responseFormat = EXTRACTOR_RESPONSE_FORMAT,
+  normalize = normalizeExtractorResponse
+} = {}) {
   const models = candidateModels();
   if (!models.length) throw new Error("OPENROUTER_MODEL is not set.");
   if (!process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not set.");
 
   let lastError;
-  for (const model of models) {
+  for (const [index, model] of models.entries()) {
+    progress(index === 0 ? "Asking the extractor" : "Trying a backup model");
     try {
-      const extracted = await withRetry(() => callOpenRouterModel(model, promptText), {
+      const extracted = await withRetry(() => callOpenRouterModel(model, promptText, { responseFormat, normalize }), {
         attempts: 2,
         baseDelayMs: 1500,
-        shouldRetry: (error) => error instanceof TransientModelError
+        shouldRetry: (error) => error instanceof TransientModelError,
+        onRetry: () => progress("Extractor busy, retrying")
       });
       if (process.env.ADAPT_DEBUG) console.log(`NORMALIZED (${model})`, extracted);
       const validated = validateFn(extracted);
@@ -516,139 +547,185 @@ async function extractWithModelFallback(promptText, validateFn) {
   );
 }
 
-async function extractWithOpenRouter({ anime, number, direction, results }) {
-  const promptText = strictExtractionPrompt({ anime, number, direction, results });
-  return extractWithModelFallback(promptText, (extracted) => validateAgainstSource(extracted, { number, direction, results }));
-}
+const NOT_FOUND = Object.freeze({ status: "not_found", matched_range: null, source: null });
 
-async function extractMovieWithOpenRouter({ anime, movieName, results }) {
-  const promptText = strictMovieExtractionPrompt({ anime, movieName, results });
-  return extractWithModelFallback(promptText, (extracted) => validateMovieAgainstSource(extracted, { movieName, results }));
-}
-
-// Only cache confirmed, validated answers (found or filler). A "not_found" result may simply mean this
-// attempt's search results were incomplete, not that no answer exists - caching it would permanently
-// poison the key for future (possibly better) lookups.
+// Only cache confirmed, validated answers. A "not_found" result may simply mean this attempt's search
+// results were incomplete, not that no answer exists - caching it would permanently poison the key
+// for future (possibly better) lookups.
 function isConfirmed(response) {
   return Boolean((response.status === "found" && response.matched_range && response.source)
-    || (response.status === "filler" && response.source));
+    || ((response.status === "filler" || response.status === "complete") && response.source));
+}
+
+// Runs `compute` unless a fresh enough cached answer exists, and caches what it confirms. The response
+// always carries the canonical series name, so the UI can show "Demon Slayer" for "Kimetsu no Yaiba".
+async function cachedLookup({ key, series, refresh, maxAgeMs, request }, compute) {
+  if (!refresh) {
+    const cached = await getCached(key, maxAgeMs);
+    if (cached) return { ...cached, series: series.name, cached: true };
+  }
+  const { response, search } = await compute();
+  if (isConfirmed(response)) {
+    await setCached(key, response, { ...request, provider: search.provider, query: search.query });
+  }
+  return { ...response, series: series.name, cached: false };
+}
+
+function lookupEpisode({ series, number, direction, refresh }, progress) {
+  const anime = series.name;
+  return cachedLookup({ key: cacheKey({ anime, number, direction }), series, refresh, request: { anime, number, direction } }, async () => {
+    const pageLabel = direction === "episode-to-chapter" ? "Episode" : "Chapter";
+    const search = await gatherSources({
+      series,
+      query: buildSearchQuery(anime, number, direction),
+      fandomPages: () => directSourceCandidates({ series, number, direction })
+        .map((url) => ({ url, title: `${anime} ${pageLabel} ${number}` }))
+    }, progress);
+
+    const direct = directMappingFromResults({ number, direction, results: search.results, trustedHosts: trustedFandomHosts(series) });
+    if (direct) return { response: direct, search };
+    if (!search.results.length) return { response: NOT_FOUND, search };
+
+    const promptText = strictExtractionPrompt({ anime, number, direction, results: search.results });
+    const response = await extractWithModelFallback(promptText, (extracted) => validateAgainstSource(extracted, { number, direction, results: search.results }), progress);
+    return { response, search };
+  });
+}
+
+// Movies don't have a predictable per-page wiki URL slug to guess (unlike Episode_N/Chapter_N), so
+// there's no deterministic fast path - only the tracker pages and search results, and the LLM
+// extractor with the same found/filler/not_found classification and source validation as episodes.
+function lookupMovie({ series, movieName, refresh }, progress) {
+  const anime = series.name;
+  return cachedLookup({ key: cacheKey({ mode: "movie", anime, movieName }), series, refresh, request: { anime, movieName, mode: "movie" } }, async () => {
+    const search = await gatherSources({ series, query: buildMovieSearchQuery(anime, movieName) }, progress);
+    if (!search.results.length) return { response: NOT_FOUND, search };
+
+    const promptText = strictMovieExtractionPrompt({ anime, movieName, results: search.results });
+    const response = await extractWithModelFallback(promptText, (extracted) => validateMovieAgainstSource(extracted, { movieName, results: search.results }), progress);
+    return { response, search };
+  });
+}
+
+// Unlike episode mappings, where the anime ends moves every time a new season airs, so these answers
+// are only reused for a few days.
+const READING_START_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+function lookupReadingStart({ series, refresh }, progress) {
+  const anime = series.name;
+  return cachedLookup({
+    key: cacheKey({ mode: "start", anime }),
+    series,
+    refresh,
+    maxAgeMs: READING_START_MAX_AGE_MS,
+    request: { anime, mode: "start" }
+  }, async () => {
+    const search = await gatherSources({ series, query: buildReadingStartQuery(anime) }, progress);
+    if (!search.results.length) return { response: { ...NOT_FOUND, note: null }, search };
+
+    const promptText = readingStartPrompt({ anime, results: search.results });
+    const response = await extractWithModelFallback(promptText, (extracted) => validateReadingStart(extracted, { results: search.results }), progress, {
+      responseFormat: READING_START_RESPONSE_FORMAT,
+      normalize: normalizeReadingStartResponse
+    });
+    return { response, search };
+  });
+}
+
+// Validates the request body and returns either { error } (a 400) or { run(progress) }.
+function parseLookupRequest(body) {
+  const animeInput = normalizeText(body?.anime);
+  const refresh = body?.refresh === true;
+
+  if (body?.mode === "movie") {
+    const movieName = normalizeMovieName(body?.movieName);
+    if (!animeInput || !movieName) return { error: "Provide anime and movie name." };
+    const series = describeSeries(animeInput);
+    return { run: (progress) => lookupMovie({ series, movieName, refresh }, progress) };
+  }
+
+  if (body?.mode === "start") {
+    if (!animeInput) return { error: "Provide an anime." };
+    const series = describeSeries(animeInput);
+    return { run: (progress) => lookupReadingStart({ series, refresh }, progress) };
+  }
+
+  const number = normalizeText(body?.number);
+  const direction = normalizeDirection(body?.direction);
+  if (!animeInput || !number || !/^\d+([.-]\d+)?$/.test(number)) {
+    return { error: "Provide anime, number, and direction." };
+  }
+  const series = describeSeries(animeInput);
+  return { run: (progress) => lookupEpisode({ series, number, direction, refresh }, progress) };
 }
 
 // Internal failure details (provider names, upstream error bodies, stack traces) go to the server log,
 // not to the user - the UI only needs a plain explanation and whether trying again might help.
-function sendLookupError(res, error) {
+function lookupFailure(error) {
   console.error(error);
   if (error instanceof SearchUnavailableError || error instanceof ExtractorUnavailableError) {
     // Not a "no mapping exists" result and not a hard failure either - just search/extraction infra
     // being down after retries. Must not be cached or reported as not_found, or a transient outage
     // would permanently poison this key and users would (wrongly) see "no answer" instead of "try again."
-    return res.status(503).json({
-      error: error.message,
-      status: error instanceof SearchUnavailableError ? "search_unavailable" : "extractor_unavailable",
+    return {
+      httpStatus: 503,
+      body: {
+        error: error.message,
+        status: error instanceof SearchUnavailableError ? "search_unavailable" : "extractor_unavailable",
+        matched_range: null,
+        source: null
+      }
+    };
+  }
+  return {
+    httpStatus: 500,
+    body: {
+      error: "Something went wrong during the lookup. Please try again.",
+      status: "error",
       matched_range: null,
       source: null
-    });
+    }
+  };
+}
+
+app.post("/api/lookup", rateLimit, async (req, res) => {
+  const lookup = parseLookupRequest(req.body);
+  if (lookup.error) return res.status(400).json({ error: lookup.error });
+
+  if (req.body?.stream !== true) {
+    try {
+      return res.json(await lookup.run(() => {}));
+    } catch (error) {
+      const { httpStatus, body } = lookupFailure(error);
+      return res.status(httpStatus).json(body);
+    }
   }
-  res.status(500).json({
-    error: "Something went wrong during the lookup. Please try again.",
-    status: "error",
-    matched_range: null,
-    source: null
+
+  // Streamed as newline-delimited JSON so the UI can show real progress through a lookup that can take
+  // half a minute: {"type":"progress",...} lines as each step starts, then exactly one
+  // {"type":"result",...} or {"type":"error",...} line. The HTTP status is already 200 by the time a
+  // failure is known, so an error line carries its real status as httpStatus.
+  res.writeHead(200, {
+    "Content-Type": "application/x-ndjson; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    "X-Accel-Buffering": "no"
   });
-}
-
-async function handleMovieLookup(req, res) {
-  const anime = normalizeText(req.body?.anime);
-  const movieName = normalizeMovieName(req.body?.movieName);
-
-  if (!anime || !movieName) {
-    return res.status(400).json({ error: "Provide anime and movie name." });
-  }
-
-  const refresh = req.body?.refresh === true;
-  const key = cacheKey({ mode: "movie", anime, movieName });
-
+  const send = (event) => {
+    if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`);
+  };
   try {
-    if (!refresh) {
-      const cached = await getCached(key);
-      if (cached) return res.json({ ...cached, cached: true });
-    }
-
-    const search = await runMovieSearch(anime, movieName);
-    if (process.env.ADAPT_DEBUG) {
-      console.log("MOVIE QUERY", search.query);
-      console.log("MOVIE RESULTS", search.results.map((r) => ({ title: r.title, url: r.url, len: r.snippet.length })));
-    }
-    // No deterministic fast path for movies (no predictable page-slug pattern to guess), so this
-    // always goes through the LLM extractor - which still applies the same found/filler/not_found
-    // classification and source validation as the episode path.
-    const response = search.results.length
-      ? await extractMovieWithOpenRouter({ anime, movieName, results: search.results })
-      : { status: "not_found", matched_range: null, source: null };
-
-    if (isConfirmed(response)) {
-      await setCached(key, response, {
-        anime,
-        movieName,
-        mode: "movie",
-        provider: search.provider,
-        query: search.query
-      });
-    }
-
-    res.json({ ...response, cached: false });
+    const body = await lookup.run((message) => send({ type: "progress", message }));
+    send({ type: "result", ...body });
   } catch (error) {
-    sendLookupError(res, error);
+    const { httpStatus, body } = lookupFailure(error);
+    send({ type: "error", httpStatus, ...body });
   }
-}
+  res.end();
+});
 
-async function handleEpisodeLookup(req, res) {
-  const anime = normalizeText(req.body?.anime);
-  const number = normalizeText(req.body?.number);
-  const direction = normalizeDirection(req.body?.direction);
-
-  if (!anime || !number || !/^\d+([.-]\d+)?$/.test(number)) {
-    return res.status(400).json({ error: "Provide anime, number, and direction." });
-  }
-
-  const refresh = req.body?.refresh === true;
-  const key = cacheKey({ anime, number, direction });
-
-  try {
-    if (!refresh) {
-      const cached = await getCached(key);
-      if (cached) return res.json({ ...cached, cached: true });
-    }
-
-    const search = await runSearch(anime, number, direction);
-    if (process.env.ADAPT_DEBUG) {
-      console.log("QUERY", search.query);
-      console.log("RESULTS", search.results.map((r) => ({ title: r.title, url: r.url, len: r.snippet.length })));
-    }
-    const direct = directMappingFromResults({ number, direction, results: search.results });
-    const response = direct || (search.results.length
-      ? await extractWithOpenRouter({ anime, number, direction, results: search.results })
-      : { status: "not_found", matched_range: null, source: null });
-
-    if (isConfirmed(response)) {
-      await setCached(key, response, {
-        anime,
-        number,
-        direction,
-        provider: search.provider,
-        query: search.query
-      });
-    }
-
-    res.json({ ...response, cached: false });
-  } catch (error) {
-    sendLookupError(res, error);
-  }
-}
-
-app.post("/api/lookup", rateLimit, (req, res) => {
-  if (req.body?.mode === "movie") return handleMovieLookup(req, res);
-  return handleEpisodeLookup(req, res);
+app.get("/api/series", (req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(seriesList());
 });
 
 app.get("/api/health", (req, res) => {
