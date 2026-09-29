@@ -6,10 +6,22 @@
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { describe, it } from "node:test";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
+import { after, before, describe, it } from "node:test";
+import { createCache } from "../lib/cache.js";
 import {
+  QuotaExhaustedError,
   TransientModelError,
+  arcRangesFromInfobox,
   cacheKey,
+  compressNumbers,
+  mentionsArc,
+  normalizeArcName,
+  normalizeArcResponse,
+  parseFillerGuide,
+  validateArc,
   directMappingFromResults,
   directMappingFromText,
   fandomApiUrl,
@@ -101,6 +113,13 @@ describe("interpretOpenRouterResponse", () => {
     assert.throws(() => interpretOpenRouterResponse("m", 200, ok("   ")), TransientModelError);
     assert.throws(() => interpretOpenRouterResponse("m", 200, ok("{status: found")), TransientModelError);
     assert.throws(() => interpretOpenRouterResponse("m", 200, "<html>gateway</html>"), TransientModelError);
+  });
+
+  it("recognizes the account-wide daily free-model limit, which no retry or fallback can fix", () => {
+    // Captured from OpenRouter after the day's 50 free requests were used.
+    const body = '{"error":{"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","code":429,"metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0"},"limit_source":"openrouter_free_tier_daily"}}}';
+    assert.throws(() => interpretOpenRouterResponse("m", 429, body), QuotaExhaustedError);
+    assert.throws(() => interpretOpenRouterResponse("m", 429, '{"error":{"message":"temporarily rate-limited upstream","code":429}}'), TransientModelError);
   });
 
   it("treats auth/bad-request errors and truncation as permanent (not worth a same-model retry)", () => {
@@ -401,5 +420,139 @@ describe("series registry", () => {
     const slugs = new Set(JSON.parse(fs.readFileSync(new URL("../lib/series-data.json", import.meta.url), "utf8")).map((entry) => entry.afg));
     assert.deepEqual(CURATED_SLUGS.filter((slug) => !slugs.has(slug)), []);
     assert.ok(seriesList().length > 100);
+  });
+});
+
+describe("filler lists", () => {
+  // Anime Filler Guide's table layout, with the variations seen live: zero-padded numbers, "* Filler"
+  // with a space, compilation episodes, anime-canon and mixed rows, and prose containing "2018. The".
+  const rows = [
+    "# Title Chapters 001. (1:10) Asta and Yuno 1 002. (2:01) The Boys' Promise 2, 3",
+    "003. (1:44) To the Royal Capital 4 004. (2:20) The Magic Knights Entrance Exam 5",
+    "005. (0:58) The Path to the Wizard King * Filler N/A 006. (1:30) The Black Bulls 6, 7",
+    "007. (2:10) The Other New Recruit 8 008. (1:55) Go! Go! First Mission 9",
+    "009. (1:20) Beyond Limits *Mixed: the second half is original 10 010. (2:02) Dungeon 11",
+    "011. (0:40) The Golden Family *Anime Canon N/A 012. (2:04) Nero Reminisces *Compilation Episode N/A",
+    "013. (1:12) Behind the Scenes *Filler N/A",
+    "The sequel manga began in July 2018. The anime followed later."
+  ].join(" ");
+
+  it("classifies every row and ignores stray numbered sentences", () => {
+    const parsed = parseFillerGuide(rows);
+    assert.equal(parsed.total, 13);
+    assert.deepEqual(parsed.filler, [5, 13]);
+    assert.deepEqual(parsed.recap, [12]);
+    assert.deepEqual(parsed.mixed, [9]);
+    assert.deepEqual(parsed.animeCanon, [11]);
+  });
+
+  it("refuses to answer from text that isn't an episode table", () => {
+    assert.equal(parseFillerGuide("Naruto has 220 episodes. 1. Intro 2. Setup"), null);
+  });
+
+  it("compresses episode lists into ranges", () => {
+    assert.equal(compressNumbers([26, 97, 102, 103, 104, 105, 106]), "26, 97, 102-106");
+    assert.equal(compressNumbers([]), null);
+  });
+});
+
+describe("arcs", () => {
+  it("reads arc ranges from the infobox formats different wikis use", () => {
+    const field = (label, value) => ({ label, value, links: [] });
+    assert.deepEqual(arcRangesFromInfobox([field("Volumes", "56-59, 4 volumes"), field("Manga Chapters", "550-580, 31 chapters"), field("Anime Episodes", "457-489, 33 episodes")]), {
+      chapters: "Chapters 550-580",
+      episodes: "Episodes 457-489"
+    });
+    assert.deepEqual(arcRangesFromInfobox([field("Manga", "Chapter 79 - 137"), field("Anime", "Episode 30 - 47")]), {
+      chapters: "Chapters 79-137",
+      episodes: "Episodes 30-47"
+    });
+    assert.deepEqual(arcRangesFromInfobox([field("Episodes", "39 - 44")]), { chapters: null, episodes: "Episodes 39-44" });
+    assert.deepEqual(arcRangesFromInfobox([field("Arc", "Shibuya Incident")]), { chapters: null, episodes: null });
+  });
+
+  it("normalizes arc names and matches them across accents and punctuation", () => {
+    assert.equal(normalizeArcName("The Marineford Arc"), "Marineford");
+    assert.equal(normalizeArcName("Chimera Ant saga!"), "Chimera Ant");
+    assert.ok(mentionsArc("Chūnin Exams (Arc) is the fourth arc", "chunin exams"));
+    assert.ok(!mentionsArc("Graduation Exams Arc", "chunin exams"));
+    assert.notEqual(cacheKey({ mode: "arc", anime: "One Piece", arcName: "Marineford" }), cacheKey({ mode: "arc", anime: "One Piece", arcName: "Wano" }));
+    assert.equal(cacheKey({ mode: "arc", anime: "One Piece", arcName: "Marineford Arc" }), cacheKey({ mode: "arc", anime: "One Piece", arcName: "marineford" }));
+  });
+
+  it("keeps only the ranges the cited source supports near the arc", () => {
+    const url = "https://a.test/naruto-arcs";
+    const results = [{ title: "Naruto arcs", url, snippet: "The Chūnin Exams arc runs from episode 20 to 67 of the anime, adapting chapters 34 to 115 of the manga." }];
+    const answer = (episodes, chapters) => validateArc({ status: "found", arc: "Chūnin Exams", episodes, chapters, source: url }, { arcName: "Chunin Exams", results });
+    assert.deepEqual(answer("Episodes 20-67", "Chapters 34-115"), { status: "found", arc: "Chūnin Exams", episodes: "Episodes 20-67", chapters: "Chapters 34-115", source: url });
+    assert.equal(answer("Episodes 20-67", "Chapters 34-120").chapters, null);
+    assert.equal(answer("Episodes 1-19", "Chapters 1-33").status, "not_found");
+    assert.equal(validateArc({ status: "found", arc: "x", episodes: "Episodes 20-67", chapters: null, source: url }, { arcName: "Wano", results }).status, "not_found");
+  });
+
+  it("normalizes model output", () => {
+    assert.equal(normalizeArcResponse({ status: "found", episodes: null, chapters: null, source: "https://a.test/" }).status, "not_found");
+    assert.equal(normalizeArcResponse({ status: "found", episodes: "Episodes 1-2", chapters: null, source: null }).status, "not_found");
+    assert.equal(normalizeArcResponse({ status: "found", arc: "A", episodes: "Episodes 1-2", chapters: null, source: "https://a.test/" }).episodes, "Episodes 1-2");
+  });
+});
+
+describe("answer cache", () => {
+  it("file backend stores, reads back and respects max age", async () => {
+    const filePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "adapt-cache-")), "cache.json");
+    const cache = createCache({ filePath });
+    assert.equal(cache.kind, "file");
+    await cache.set("k", { status: "found", matched_range: "Chapter 1" }, { anime: "X" });
+    assert.equal((await cache.get("k")).matched_range, "Chapter 1");
+    assert.equal(await cache.get("k", -1), null);
+    assert.equal(await cache.get("missing"), null);
+  });
+
+  describe("Redis REST backend (against a local Upstash-compatible server)", () => {
+    let server;
+    let url;
+    let failing = false;
+    const store = new Map();
+    const seen = [];
+
+    before(async () => {
+      server = http.createServer((req, res) => {
+        let body = "";
+        req.on("data", (chunk) => { body += chunk; });
+        req.on("end", () => {
+          if (failing || req.headers.authorization !== "Bearer secret") {
+            res.writeHead(failing ? 500 : 401, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ error: failing ? "boom" : "unauthorized" }));
+          }
+          const [command, key, value, ...rest] = JSON.parse(body);
+          seen.push([command, key, ...rest]);
+          if (command === "SET") store.set(key, value);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ result: command === "GET" ? (store.get(key) ?? null) : "OK" }));
+        });
+      });
+      await new Promise((resolve) => server.listen(0, resolve));
+      url = `http://127.0.0.1:${server.address().port}/`;
+    });
+
+    after(() => server.close());
+
+    it("stores and reads back entries, with an expiry for short-lived answers", async () => {
+      const cache = createCache({ redisUrl: url, redisToken: "secret" });
+      assert.equal(cache.kind, "redis");
+      await cache.set("k", { status: "found", matched_range: "Chapter 684" }, { anime: "Bleach" }, { ttlMs: 60000 });
+      assert.equal((await cache.get("k")).matched_range, "Chapter 684");
+      assert.deepEqual(seen.find(([command]) => command === "SET"), ["SET", "adapt:k", "PX", "60000"]);
+      assert.equal(await cache.get("missing"), null);
+    });
+
+    it("treats an unavailable cache as a miss instead of failing the lookup", async () => {
+      failing = true;
+      const cache = createCache({ redisUrl: url, redisToken: "secret" });
+      assert.equal(await cache.get("k"), null);
+      await cache.set("k", { status: "found" }, {});
+      failing = false;
+      assert.equal(await createCache({ redisUrl: url, redisToken: "wrong" }).get("k"), null);
+    });
   });
 });

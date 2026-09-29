@@ -114,7 +114,7 @@ a:focus-visible {
 
 .mode-toggle {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   padding: 4px;
   margin-bottom: 14px;
@@ -158,7 +158,8 @@ a:focus-visible {
   grid-template-columns: 1fr;
 }
 
-#movie-name {
+#movie-name,
+#arc-name {
   font-family: "IBM Plex Sans", sans-serif;
   font-size: 16px;
   font-weight: 600;
@@ -238,6 +239,40 @@ a:focus-visible {
 
 .answer-complete {
   color: #57c7bf;
+}
+
+.answer-two-line {
+  font-size: 19px;
+  line-height: 1.3;
+  white-space: pre-line;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0 0 12px;
+}
+
+.details dt {
+  color: #6a6f7b;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  padding-top: 2px;
+  text-transform: uppercase;
+}
+
+.details dd {
+  margin: 0;
+  color: #c9cdd6;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .answer-error {
@@ -457,9 +492,22 @@ a:focus-visible {
     padding: 34px 14px;
   }
 
+  .mode-toggle {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .mode-btn {
     font-size: 11px;
     letter-spacing: 0;
+  }
+
+  .details {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .details dd {
+    margin-bottom: 6px;
   }
 
   .converter {

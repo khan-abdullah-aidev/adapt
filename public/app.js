@@ -3,6 +3,7 @@ const animeInput = document.querySelector("#anime");
 const seriesOptions = document.querySelector("#series-options");
 const numberInput = document.querySelector("#number");
 const movieNameInput = document.querySelector("#movie-name");
+const arcNameInput = document.querySelector("#arc-name");
 const modeButtons = document.querySelectorAll(".mode-btn");
 const converter = document.querySelector("#converter");
 const fromTile = document.querySelector("#from-tile");
@@ -14,6 +15,7 @@ const findLabel = document.querySelector("#find-label");
 const answer = document.querySelector("#answer");
 const meta = document.querySelector("#meta");
 const sentence = document.querySelector("#result-sentence");
+const details = document.querySelector("#details");
 const sourceLink = document.querySelector("#source-link");
 const cacheBadge = document.querySelector("#cache-badge");
 const shareBtn = document.querySelector("#share-btn");
@@ -21,7 +23,7 @@ const recheckBtn = document.querySelector("#recheck-btn");
 const recentsWrap = document.querySelector("#recents-wrap");
 const recentsList = document.querySelector("#recents");
 
-let mode = "episode"; // "episode" | "movie" | "start"
+let mode = "episode"; // "episode" | "movie" | "arc" | "fillers" | "start"
 let direction = "episode-to-chapter";
 let status = "idle";
 let result = null;
@@ -32,8 +34,15 @@ function cap(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+// Modes that only need the series name - no second input tile.
+function seriesOnlyMode() {
+  return mode === "start" || mode === "fillers";
+}
+
 function parts() {
   if (mode === "movie") return { from: "movie", to: "chapter/arc" };
+  if (mode === "arc") return { from: "arc", to: "episodes & chapters" };
+  if (mode === "fillers") return { from: "series", to: "filler episodes" };
   if (mode === "start") return { from: "series", to: "start reading at" };
   const from = direction === "episode-to-chapter" ? "episode" : "chapter";
   const to = direction === "episode-to-chapter" ? "chapter" : "episode";
@@ -44,6 +53,8 @@ function parts() {
 // name itself in movie mode.
 function subjectLabel() {
   if (mode === "movie") return movieNameInput.value.trim();
+  if (mode === "arc") return `${arcNameInput.value.trim().replace(/\s+arc$/i, "")} Arc`;
+  if (mode === "fillers") return "Filler list";
   if (mode === "start") return "Where to start reading";
   return `${cap(parts().from)} ${numberInput.value.trim()}`;
 }
@@ -59,8 +70,9 @@ function setMode(nextMode) {
   swapButton.hidden = mode !== "episode";
   numberInput.hidden = mode !== "episode";
   movieNameInput.hidden = mode !== "movie";
-  fromTile.hidden = mode === "start";
-  converter.classList.toggle("single", mode === "start");
+  arcNameInput.hidden = mode !== "arc";
+  fromTile.hidden = seriesOnlyMode();
+  converter.classList.toggle("single", seriesOnlyMode());
   resetResult();
 }
 
@@ -86,7 +98,9 @@ function setStatus(nextStatus, nextResult = null) {
 }
 
 function idleFindLabel() {
-  return mode === "start" ? "Find where to start" : "Find match";
+  if (mode === "start") return "Find where to start";
+  if (mode === "fillers") return "List filler episodes";
+  return "Find match";
 }
 
 function setProgress(message) {
@@ -97,8 +111,28 @@ function validForm() {
   if (status === "loading") return false;
   if (!animeInput.value.trim()) return false;
   if (mode === "movie") return Boolean(movieNameInput.value.trim());
-  if (mode === "start") return true;
+  if (mode === "arc") return Boolean(arcNameInput.value.trim());
+  if (seriesOnlyMode()) return true;
   return Boolean(numberInput.value.trim());
+}
+
+function renderDetails(rows) {
+  const visible = rows.filter(([, value]) => value);
+  details.hidden = visible.length === 0;
+  details.replaceChildren(...visible.flatMap(([label, value]) => {
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const description = document.createElement("dd");
+    // Lines may wrap between ranges but never inside one ("142-" / "149").
+    value.split(", ").forEach((item, index) => {
+      if (index) description.append(", ");
+      const range = document.createElement("span");
+      range.className = "nowrap";
+      range.textContent = item;
+      description.append(range);
+    });
+    return [term, description];
+  }));
 }
 
 function resetResult() {
@@ -115,6 +149,7 @@ function renderResult() {
   shareBtn.hidden = true;
   recheckBtn.hidden = true;
   recheckBtn.textContent = "Wrong? Re-check";
+  renderDetails([]);
 
   if (status === "idle") {
     answer.classList.add("answer-idle");
@@ -148,12 +183,15 @@ function renderResult() {
 
   if (status === "notfound") {
     answer.classList.add("answer-notfound");
-    answer.textContent = mode === "movie"
-      ? "No match found"
-      : mode === "start"
-        ? "No starting point found"
-        : direction === "episode-to-chapter" ? "No chapter found" : "No episode found";
-    sentence.textContent = "The search results did not explicitly contain a clear mapping, so no answer was returned.";
+    answer.textContent = {
+      movie: "No match found",
+      arc: "No arc match found",
+      fillers: "No filler list found",
+      start: "No starting point found"
+    }[mode] || (direction === "episode-to-chapter" ? "No chapter found" : "No episode found");
+    sentence.textContent = mode === "fillers"
+      ? `Couldn't find an episode-by-episode filler guide for ${seriesName()}.`
+      : "The search results did not explicitly contain a clear mapping, so no answer was returned.";
     return;
   }
 
@@ -172,6 +210,31 @@ function renderResult() {
     answer.classList.add("answer-complete");
     answer.textContent = "Anime covers the whole manga";
     sentence.textContent = result.note || `The ${seriesName()} anime adapts the entire manga — there's nothing further to read.`;
+    return;
+  }
+
+  if (mode === "arc") {
+    // Two short lines in the tile ("Ep 457-489" / "Ch 550-580"); the full wording goes below.
+    const short = (range) => range?.replace(/^Episodes?/, "Ep").replace(/^Chapters?/, "Ch");
+    answer.classList.add("answer-two-line");
+    answer.textContent = [short(result.episodes), short(result.chapters)].filter(Boolean).join("\n");
+    const arcName = result.arc || subjectLabel();
+    sentence.textContent = `${arcName} (${seriesName()}) spans ${[result.episodes, result.chapters].filter(Boolean).join(" and ")}.`;
+    return;
+  }
+
+  if (mode === "fillers") {
+    answer.textContent = result.matched_range;
+    const skipCount = (result.counts?.filler || 0) + (result.counts?.recap || 0);
+    sentence.textContent = skipCount
+      ? `${skipCount} of ${seriesName()}'s ${result.total} episodes aren't from the manga — skip these to stick to the story.`
+      : `Every one of ${seriesName()}'s ${result.total} episodes adapts the manga — there's nothing to skip.`;
+    renderDetails([
+      ["Filler", result.filler],
+      ["Recaps", result.recap],
+      ["Part filler", result.mixed],
+      ["Anime-original canon", result.anime_canon]
+    ]);
     return;
   }
 
@@ -202,7 +265,9 @@ function renderRecents() {
       setMode(item.mode || "episode");
       if (item.mode === "movie") {
         movieNameInput.value = item.movieName;
-      } else if (item.mode !== "start") {
+      } else if (item.mode === "arc") {
+        arcNameInput.value = item.arcName;
+      } else if (!item.mode || item.mode === "episode") {
         numberInput.value = item.number;
         direction = item.direction;
       }
@@ -239,6 +304,7 @@ function pushRecent(response) {
     anime,
     number: mode === "episode" ? numberInput.value.trim() : "",
     movieName: mode === "movie" ? movieNameInput.value.trim() : "",
+    arcName: mode === "arc" ? arcNameInput.value.trim() : "",
     direction,
     query,
     answer: answerText
@@ -248,11 +314,12 @@ function pushRecent(response) {
 }
 
 // Shareable links: the current lookup as query parameters, e.g. ?series=One+Piece&episode=1090,
-// ?series=Demon+Slayer&movie=Infinity+Castle+Part+2 or ?series=Bleach&mode=start.
+// ?series=Demon+Slayer&movie=Infinity+Castle+Part+2, &arc=Marineford, &mode=fillers or &mode=start.
 function shareUrl() {
   const params = new URLSearchParams({ series: animeInput.value.trim() });
   if (mode === "movie") params.set("movie", movieNameInput.value.trim());
-  else if (mode === "start") params.set("mode", "start");
+  else if (mode === "arc") params.set("arc", arcNameInput.value.trim());
+  else if (seriesOnlyMode()) params.set("mode", mode);
   else params.set(direction === "episode-to-chapter" ? "episode" : "chapter", numberInput.value.trim());
   const url = new URL(window.location.href);
   url.search = params.toString();
@@ -271,8 +338,11 @@ function applyUrlState() {
   if (params.has("movie")) {
     setMode("movie");
     movieNameInput.value = params.get("movie");
-  } else if (params.get("mode") === "start") {
-    setMode("start");
+  } else if (params.has("arc")) {
+    setMode("arc");
+    arcNameInput.value = params.get("arc");
+  } else if (params.get("mode") === "start" || params.get("mode") === "fillers") {
+    setMode(params.get("mode"));
   } else if (params.has("chapter")) {
     setMode("episode");
     direction = "chapter-to-episode";
@@ -366,11 +436,12 @@ async function runLookup({ refresh = false } = {}) {
   window.history.replaceState(null, "", shareUrl());
 
   const anime = animeInput.value.trim();
-  const body = mode === "movie"
-    ? { anime, mode: "movie", movieName: movieNameInput.value.trim(), refresh }
-    : mode === "start"
-      ? { anime, mode: "start", refresh }
-      : { anime, mode: "episode", number: numberInput.value.trim(), direction, refresh };
+  const body = {
+    movie: { anime, mode, movieName: movieNameInput.value.trim(), refresh },
+    arc: { anime, mode, arcName: arcNameInput.value.trim(), refresh },
+    fillers: { anime, mode, refresh },
+    start: { anime, mode, refresh }
+  }[mode] || { anime, mode: "episode", number: numberInput.value.trim(), direction, refresh };
 
   try {
     const { ok, data } = await postLookup(body, setProgress);
@@ -399,10 +470,12 @@ numberInput.addEventListener("input", () => {
   if (status !== "loading") resetResult();
   else render();
 });
-movieNameInput.addEventListener("input", () => {
-  if (status !== "loading") resetResult();
-  else render();
-});
+for (const input of [movieNameInput, arcNameInput]) {
+  input.addEventListener("input", () => {
+    if (status !== "loading") resetResult();
+    else render();
+  });
+}
 
 swapButton.addEventListener("click", () => {
   direction = direction === "episode-to-chapter" ? "chapter-to-episode" : "episode-to-chapter";

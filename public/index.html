@@ -27,6 +27,8 @@
           <div class="mode-toggle" id="mode-toggle" role="group" aria-label="Lookup type">
             <button type="button" class="mode-btn active" id="mode-episode" data-mode="episode">Episode</button>
             <button type="button" class="mode-btn" id="mode-movie" data-mode="movie">Movie</button>
+            <button type="button" class="mode-btn" id="mode-arc" data-mode="arc">Arc</button>
+            <button type="button" class="mode-btn" id="mode-fillers" data-mode="fillers">Fillers</button>
             <button type="button" class="mode-btn" id="mode-start" data-mode="start">Start reading</button>
           </div>
 
@@ -35,6 +37,7 @@
               <span id="from-label">Episode</span>
               <input id="number" name="number" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="1090">
               <input id="movie-name" name="movieName" autocomplete="off" spellcheck="false" placeholder="e.g. Infinity Castle" hidden>
+              <input id="arc-name" name="arcName" autocomplete="off" spellcheck="false" placeholder="e.g. Marineford" hidden>
             </label>
 
             <button class="swap" id="swap" type="button" title="Swap direction" aria-label="Swap direction">
@@ -55,6 +58,7 @@
 
         <section class="meta" id="meta" hidden>
           <p id="result-sentence"></p>
+          <dl id="details" class="details" hidden></dl>
           <div class="source-row">
             <span id="cache-badge" class="badge" hidden>cached</span>
             <a id="source-link" href="#" target="_blank" rel="noreferrer" hidden>source</a>

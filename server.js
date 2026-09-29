@@ -1,28 +1,39 @@
 import express from "express";
 import fsSync from "node:fs";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createCache } from "./lib/cache.js";
 import {
+  ARC_RESPONSE_FORMAT,
   EXTRACTOR_RESPONSE_FORMAT,
+  QuotaExhaustedError,
   READING_START_RESPONSE_FORMAT,
   THIN_SNIPPET_THRESHOLD,
   TransientModelError,
+  arcPrompt,
+  arcRangesFromInfobox,
+  arcSummary,
   cacheKey,
+  compressNumbers,
   directMappingFromResults,
   fandomApiUrl,
   interpretOpenRouterResponse,
+  mentionsArc,
+  normalizeArcName,
+  normalizeArcResponse,
   normalizeDirection,
   normalizeExtractorResponse,
   normalizeMovieName,
   normalizeReadingStartResponse,
   normalizeText,
+  parseFillerGuide,
   parseInfoboxFields,
   readingStartPrompt,
   strictExtractionPrompt,
   strictMovieExtractionPrompt,
   stripHtml,
   validateAgainstSource,
+  validateArc,
   validateMovieAgainstSource,
   validateReadingStart
 } from "./lib/extraction.js";
@@ -38,7 +49,11 @@ const app = express();
 // would end up rate-limiting all visitors collectively instead of individually.
 app.set("trust proxy", 1);
 const port = Number(process.env.PORT || 3000);
-const cachePath = path.join(__dirname, "data", "cache.json");
+const cache = createCache({
+  filePath: path.join(__dirname, "data", "cache.json"),
+  redisUrl: process.env.UPSTASH_REDIS_REST_URL,
+  redisToken: process.env.UPSTASH_REDIS_REST_TOKEN
+});
 
 function loadDotEnv(filePath) {
   if (!fsSync.existsSync(filePath)) return;
@@ -63,8 +78,6 @@ function loadDotEnv(filePath) {
 
 app.use(express.json({ limit: "64kb" }));
 app.use(express.static(path.join(__dirname, "public")));
-
-let cacheWrite = Promise.resolve();
 
 // Generous per-IP fixed-window limiter for the search endpoint: high enough to never bother normal
 // (even repeated manual testing) usage, but enough to stop a runaway retry loop or scripted abuse
@@ -100,50 +113,6 @@ function rateLimit(req, res, next) {
     });
   }
   next();
-}
-
-async function readCache() {
-  let raw;
-  try {
-    raw = await fs.readFile(cachePath, "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") return {};
-    throw error;
-  }
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    console.error("Cache file is corrupt, treating as empty:", error.message);
-    return {};
-  }
-}
-
-async function writeCache(cache) {
-  await fs.mkdir(path.dirname(cachePath), { recursive: true });
-  const temp = `${cachePath}.tmp`;
-  await fs.writeFile(temp, JSON.stringify(cache, null, 2));
-  await fs.rename(temp, cachePath);
-}
-
-async function getCached(key, maxAgeMs = Infinity) {
-  const cache = await readCache();
-  const entry = cache[key];
-  if (!entry?.response) return null;
-  if (Date.now() - Date.parse(entry.cached_at) > maxAgeMs) return null;
-  return entry.response;
-}
-
-async function setCached(key, response, request) {
-  cacheWrite = cacheWrite.then(async () => {
-    const cache = await readCache();
-    cache[key] = {
-      response,
-      request,
-      cached_at: new Date().toISOString()
-    };
-    await writeCache(cache);
-  });
-  await cacheWrite;
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
@@ -442,8 +411,9 @@ function mergeFetchedPages(results, pages) {
 }
 
 // Shared shape of every lookup's retrieval step: search while the tracker pages download, then fetch
-// whatever Fandom pages the search results point at, and merge it all into one source list.
-async function gatherSources({ series, query, fandomPages = () => [] }, progress) {
+// whatever Fandom pages the search results point at, and merge it all (plus any `extraPages` the
+// caller already fetched) into one source list.
+async function gatherSources({ series, query, fandomPages = () => [], extraPages = [] }, progress) {
   const provider = selectedProvider();
   progress("Searching the web");
   const trackerFetch = fetchPages(trackerPages(series));
@@ -457,7 +427,7 @@ async function gatherSources({ series, query, fandomPages = () => [] }, progress
   const upgrades = thinFandomResults(results, wikiPages.map((page) => page.url), series);
   if (wikiPages.length || upgrades.length) progress("Checking the wiki");
   const [wikiFetched, trackersFetched] = await Promise.all([fetchPages([...wikiPages, ...upgrades]), trackerFetch]);
-  const merged = mergeFetchedPages(results, [...wikiFetched, ...trackersFetched]);
+  const merged = mergeFetchedPages(results, [...extraPages, ...wikiFetched, ...trackersFetched]);
 
   if (process.env.ADAPT_DEBUG) {
     console.log("QUERY", query);
@@ -467,13 +437,24 @@ async function gatherSources({ series, query, fandomPages = () => [] }, progress
   return { provider, query, results: merged };
 }
 
+// Free OpenRouter models that support structured output, fastest-and-steadiest first (benchmarked
+// 2026-09: qwen answered in ~7s every time; nemotron-3-super was quicker when up but often
+// overloaded; nemotron-3-ultra had 20s+ outliers). Used for whichever of OPENROUTER_MODEL /
+// OPENROUTER_FALLBACK_MODELS isn't set, so a deploy works well without any model configuration.
+const DEFAULT_MODELS = [
+  "qwen/qwen3.8-27b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free"
+];
+
 function candidateModels() {
   const primary = normalizeText(process.env.OPENROUTER_MODEL);
-  const fallbacks = normalizeText(process.env.OPENROUTER_FALLBACK_MODELS)
+  const configuredFallbacks = normalizeText(process.env.OPENROUTER_FALLBACK_MODELS)
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-  return [...new Set([primary, ...fallbacks].filter(Boolean))];
+  const fallbacks = process.env.OPENROUTER_FALLBACK_MODELS === undefined ? DEFAULT_MODELS : configuredFallbacks;
+  return [...new Set([primary || DEFAULT_MODELS[0], ...fallbacks].filter(Boolean))];
 }
 
 async function callOpenRouterModel(model, promptText, { responseFormat, normalize }) {
@@ -519,7 +500,6 @@ async function extractWithModelFallback(promptText, validateFn, progress, {
   normalize = normalizeExtractorResponse
 } = {}) {
   const models = candidateModels();
-  if (!models.length) throw new Error("OPENROUTER_MODEL is not set.");
   if (!process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not set.");
 
   let lastError;
@@ -539,6 +519,13 @@ async function extractWithModelFallback(promptText, validateFn, progress, {
     } catch (error) {
       lastError = error;
       if (process.env.ADAPT_DEBUG) console.log(`MODEL FAILED (${model})`, error.message);
+      // The daily free-model limit covers every free model, so the rest of the list would fail too.
+      if (error instanceof QuotaExhaustedError) {
+        throw new ExtractorUnavailableError(
+          "Today's free AI lookups are used up. Cached answers, filler lists and answers straight from the wiki still work — try again after midnight UTC.",
+          { cause: error }
+        );
+      }
     }
   }
   throw new ExtractorUnavailableError(
@@ -561,12 +548,12 @@ function isConfirmed(response) {
 // always carries the canonical series name, so the UI can show "Demon Slayer" for "Kimetsu no Yaiba".
 async function cachedLookup({ key, series, refresh, maxAgeMs, request }, compute) {
   if (!refresh) {
-    const cached = await getCached(key, maxAgeMs);
+    const cached = await cache.get(key, maxAgeMs);
     if (cached) return { ...cached, series: series.name, cached: true };
   }
   const { response, search } = await compute();
   if (isConfirmed(response)) {
-    await setCached(key, response, { ...request, provider: search.provider, query: search.query });
+    await cache.set(key, response, { ...request, provider: search?.provider, query: search?.query }, { ttlMs: maxAgeMs });
   }
   return { ...response, series: series.name, cached: false };
 }
@@ -607,9 +594,9 @@ function lookupMovie({ series, movieName, refresh }, progress) {
   });
 }
 
-// Unlike episode mappings, where the anime ends moves every time a new season airs, so these answers
-// are only reused for a few days.
-const READING_START_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+// Unlike episode mappings, where the anime ends and which episodes exist move as new episodes and
+// seasons air, so "start reading" and filler-list answers are only reused for a few days.
+const SEASONAL_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 function lookupReadingStart({ series, refresh }, progress) {
   const anime = series.name;
@@ -617,7 +604,7 @@ function lookupReadingStart({ series, refresh }, progress) {
     key: cacheKey({ mode: "start", anime }),
     series,
     refresh,
-    maxAgeMs: READING_START_MAX_AGE_MS,
+    maxAgeMs: SEASONAL_MAX_AGE_MS,
     request: { anime, mode: "start" }
   }, async () => {
     const search = await gatherSources({ series, query: buildReadingStartQuery(anime) }, progress);
@@ -632,10 +619,131 @@ function lookupReadingStart({ series, refresh }, progress) {
   });
 }
 
+function buildArcQuery(anime, arcName) {
+  return [
+    `"${anime}" "${arcName}" arc episodes chapters`,
+    "(site:animefillerguide.com OR site:fandom.com)",
+    "story arc episode range chapter range"
+  ].join(" ");
+}
+
+async function fetchJson(url) {
+  const data = await fetchBody(url);
+  return data && typeof data === "object" ? data : null;
+}
+
+// The series' own wiki, searched for the arc ("Overhaul" finds MHA's "Shie Hassaikai Arc"). Only
+// pages titled as an arc or saga count, and only the top two, fetched with their infoboxes.
+async function findWikiArcPages(series, arcName) {
+  for (const host of trustedFandomHosts(series)) {
+    const params = new URLSearchParams({
+      action: "query",
+      list: "search",
+      srsearch: `${arcName} arc`,
+      srlimit: "5",
+      srnamespace: "0",
+      format: "json",
+      formatversion: "2"
+    });
+    const data = await fetchJson(`https://${host}/api.php?${params}`);
+    const titles = (data?.query?.search || []).map((hit) => hit.title).filter((title) => /\b(?:arc|saga)\b/i.test(title));
+    if (!titles.length) continue;
+    const pages = titles.slice(0, 2).map((title) => ({ url: `https://${host}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`, title }));
+    return fetchPages(pages);
+  }
+  return [];
+}
+
+// Wiki arc infobox first - instant and exact when it lists the ranges - then the LLM over search
+// results and tracker pages (which include any wiki arc page found without usable infobox data).
+function lookupArc({ series, arcName, refresh }, progress) {
+  const anime = series.name;
+  return cachedLookup({ key: cacheKey({ mode: "arc", anime, arcName }), series, refresh, request: { anime, arcName, mode: "arc" } }, async () => {
+    progress("Checking the wiki");
+    const wikiPages = (await findWikiArcPages(series, arcName)).filter((page) => page.snippet);
+    for (const page of wikiPages) {
+      const ranges = arcRangesFromInfobox(page.infobox);
+      if ((ranges.chapters || ranges.episodes) && mentionsArc(`${page.title} ${page.snippet}`, arcName)) {
+        return {
+          response: { status: "found", arc: page.title, ...ranges, matched_range: arcSummary(ranges), source: page.url },
+          search: null
+        };
+      }
+    }
+
+    const search = await gatherSources({ series, query: buildArcQuery(anime, arcName), extraPages: wikiPages }, progress);
+    if (!search.results.length) return { response: NOT_FOUND, search };
+
+    const promptText = arcPrompt({ anime, arcName, results: search.results });
+    const extracted = await extractWithModelFallback(promptText, (value) => validateArc(value, { arcName, results: search.results }), progress, {
+      responseFormat: ARC_RESPONSE_FORMAT,
+      normalize: normalizeArcResponse
+    });
+    const response = extracted.status === "found"
+      ? { ...extracted, matched_range: arcSummary(extracted) }
+      : { ...extracted, matched_range: null };
+    return { response, search };
+  });
+}
+
+// Read straight off Anime Filler Guide's episode table - every row is labeled, so no search or LLM
+// is needed. Cached briefly because ongoing series keep adding episodes.
+function lookupFillers({ series, refresh }, progress) {
+  const anime = series.name;
+  return cachedLookup({
+    key: cacheKey({ mode: "fillers", anime }),
+    series,
+    refresh,
+    maxAgeMs: SEASONAL_MAX_AGE_MS,
+    request: { anime, mode: "fillers" }
+  }, async () => {
+    const [guide] = trackerPages(series).filter((page) => page.url.includes("animefillerguide.com"));
+    if (!guide) return { response: NOT_FOUND, search: null };
+    progress("Reading the episode guide");
+    const [page] = await fetchPages([guide]);
+    const parsed = page.snippet ? parseFillerGuide(page.snippet) : null;
+    if (!parsed) return { response: NOT_FOUND, search: null };
+
+    const skip = [...parsed.filler, ...parsed.recap];
+    return {
+      response: {
+        status: "found",
+        matched_range: `${skip.length} of ${parsed.total} episodes`,
+        source: guide.url,
+        total: parsed.total,
+        filler: compressNumbers(parsed.filler),
+        recap: compressNumbers(parsed.recap),
+        mixed: compressNumbers(parsed.mixed),
+        anime_canon: compressNumbers(parsed.animeCanon),
+        counts: {
+          filler: parsed.filler.length,
+          recap: parsed.recap.length,
+          mixed: parsed.mixed.length,
+          anime_canon: parsed.animeCanon.length
+        }
+      },
+      search: null
+    };
+  });
+}
+
 // Validates the request body and returns either { error } (a 400) or { run(progress) }.
 function parseLookupRequest(body) {
   const animeInput = normalizeText(body?.anime);
   const refresh = body?.refresh === true;
+
+  if (body?.mode === "arc") {
+    const arcName = normalizeArcName(body?.arcName);
+    if (!animeInput || !arcName) return { error: "Provide anime and arc name." };
+    const series = describeSeries(animeInput);
+    return { run: (progress) => lookupArc({ series, arcName, refresh }, progress) };
+  }
+
+  if (body?.mode === "fillers") {
+    if (!animeInput) return { error: "Provide an anime." };
+    const series = describeSeries(animeInput);
+    return { run: (progress) => lookupFillers({ series, refresh }, progress) };
+  }
 
   if (body?.mode === "movie") {
     const movieName = normalizeMovieName(body?.movieName);
@@ -738,7 +846,10 @@ app.get("/api/health", (req, res) => {
         return null;
       }
     })(),
-    openrouter_model_configured: Boolean(normalizeText(process.env.OPENROUTER_MODEL))
+    extractor_models: candidateModels(),
+    // "redis" means answers survive restarts and deploys; "file" means they're lost whenever the
+    // host wipes its disk (e.g. every time a Render free instance spins down).
+    cache: cache.kind
   });
 });
 

@@ -79,6 +79,28 @@ const cases = [
     name: "My Hero Academia: start reading at Chapter 431",
     request: { anime: "My Hero Academia", mode: "start" },
     expect: { status: "found", matched_numbers: ["431"] }
+  },
+  // Arcs straight from the series wiki's arc infobox ("Overhaul" is found through the wiki's search).
+  {
+    name: "One Piece Marineford Arc -> Episodes 457-489, Chapters 550-580",
+    request: { anime: "One Piece", mode: "arc", arcName: "Marineford" },
+    expect: { status: "found", matched_numbers: ["457", "489", "550", "580"] }
+  },
+  {
+    name: "MHA Overhaul arc -> Shie Hassaikai Arc, Episodes 62-78, Chapters 122-162",
+    request: { anime: "MHA", mode: "arc", arcName: "Overhaul" },
+    expect: { status: "found", matched_numbers: ["62", "78", "122", "162"] }
+  },
+  // Filler lists read off Anime Filler Guide's table - finished series, so the counts are fixed.
+  {
+    name: "Naruto filler list -> 89 of 220 episodes",
+    request: { anime: "Naruto", mode: "fillers" },
+    expect: { status: "found", matched_numbers: ["89", "220"] }
+  },
+  {
+    name: "Black Clover filler list -> 18 of 170 (16 filler + 2 recaps)",
+    request: { anime: "Black Clover", mode: "fillers" },
+    expect: { status: "found", matched_numbers: ["18", "170"] }
   }
 ];
 
