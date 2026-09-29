@@ -114,6 +114,7 @@ function renderResult() {
   sourceLink.hidden = true;
   cacheBadge.hidden = true;
   recheckBtn.hidden = true;
+  recheckBtn.textContent = "Wrong? Re-check";
   metaBody.classList.remove("blurred");
 
   if (status === "idle") {
@@ -130,9 +131,11 @@ function renderResult() {
 
   if (status === "error") {
     answer.classList.add("answer-error");
-    answer.textContent = "Try again";
+    answer.textContent = "Lookup failed";
     sentence.textContent = result?.error || "The lookup failed before a source-backed answer could be returned.";
     meta.hidden = false;
+    recheckBtn.textContent = "Try again";
+    recheckBtn.hidden = false;
     return;
   }
 
@@ -278,12 +281,20 @@ async function runLookup({ refresh = false } = {}) {
       ? { anime: animeInput.value.trim(), mode: "movie", movieName: movieNameInput.value.trim(), refresh }
       : { anime: animeInput.value.trim(), mode: "episode", number: numberInput.value.trim(), direction, refresh };
 
-    const response = await fetch("/api/lookup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+    let response;
+    try {
+      response = await fetch("/api/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    } catch {
+      throw new Error("Couldn't reach the server. Check your connection and try again.");
+    }
+    // A proxy/host error page (e.g. an HTML 502 while the server restarts) isn't JSON.
+    const data = await response.json().catch(() => {
+      throw new Error("The server sent back an unexpected response. Please try again.");
     });
-    const data = await response.json();
     setLoading(false);
 
     if (!response.ok) {

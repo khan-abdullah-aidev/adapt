@@ -3,9 +3,11 @@
 // answers, catching the kind of retrieval/extraction regressions this project has hit before:
 // filler misclassification, wrong chapter numbers, and thin-snippet source conflicts.
 //
+// For fast offline checks of the parsing/validation logic, use `npm test` (test/extraction.test.mjs).
+//
 // Usage:
-//   node test/regression.mjs            (forces fresh lookups, bypassing cache - default)
-//   TEST_USE_CACHE=1 node test/regression.mjs   (allows cache hits - faster, cheaper, less thorough)
+//   npm run test:live            (forces fresh lookups, bypassing cache - default)
+//   TEST_USE_CACHE=1 npm run test:live   (allows cache hits - faster, cheaper, less thorough)
 
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -47,6 +49,19 @@ const cases = [
     name: "One Piece Chapter 154 -> Episode 91 (chapter-to-episode)",
     request: { anime: "One Piece", number: "154", direction: "chapter-to-episode" },
     expect: { status: "found", matched_range: "Episode 91" }
+  },
+  // Movie answers are free-form ("Chapters 157-180", "Chapters 157 (p. 7) - 180 (p. 7)", ...), so these
+  // check for the boundary chapter numbers rather than an exact string. Part 1 vs Part 2 guards against
+  // multi-part movies collapsing into one answer.
+  {
+    name: "Demon Slayer movie Infinity Castle Part 1 -> Chapters 140-157",
+    request: { anime: "Demon Slayer", mode: "movie", movieName: "Infinity Castle Part 1" },
+    expect: { status: "found", matched_numbers: ["140", "157"] }
+  },
+  {
+    name: "Demon Slayer movie Infinity Castle Part 2 -> Chapters 157-180",
+    request: { anime: "Demon Slayer", mode: "movie", movieName: "Infinity Castle Part 2" },
+    expect: { status: "found", matched_numbers: ["157", "180"] }
   }
 ];
 
@@ -82,6 +97,11 @@ async function runCase(testCase) {
   }
   if (testCase.expect.matched_range && data.matched_range !== testCase.expect.matched_range) {
     return { pass: false, detail: `expected matched_range "${testCase.expect.matched_range}", got "${data.matched_range}"` };
+  }
+  const numbers = String(data.matched_range || "").match(/\d+/g) || [];
+  const missing = (testCase.expect.matched_numbers || []).filter((number) => !numbers.includes(number));
+  if (missing.length) {
+    return { pass: false, detail: `expected matched_range to include ${missing.join(", ")}, got "${data.matched_range}"` };
   }
   return { pass: true, detail: JSON.stringify(data) };
 }
